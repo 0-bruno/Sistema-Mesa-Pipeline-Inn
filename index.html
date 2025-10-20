@@ -151,7 +151,6 @@ function atualizarTotal(mesaDiv){
   total*=1.2;
   mesaDiv.querySelector('.total').textContent = total.toFixed(2);
 }
-
 // Finaliza mesa
 function finalizarMesa(mesa){
   db.ref('mesas/'+mesa).once('value').then(snapshot=>{
@@ -209,4 +208,5 @@ db.ref('mesas').on('value', snapshot => {
 </script>
 </body>
 </html>
+
 
