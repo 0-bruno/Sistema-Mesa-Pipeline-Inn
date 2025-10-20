@@ -194,7 +194,12 @@ function fecharAvulso(mesa){
 
 // Cria mesas fixas
 for(let i=1; i<=9; i++){
-  db.ref('mesas/Mesa-'+i).set({itens:{}});
+  const ref = db.ref('mesas/Mesa-'+i);
+  ref.once('value').then(snapshot => {
+    if(!snapshot.exists()){
+      ref.set({itens:{}});
+    }
+  });
 }
 
 // Escuta em tempo real para atualizar mesas automaticamente
@@ -208,5 +213,6 @@ db.ref('mesas').on('value', snapshot => {
 </script>
 </body>
 </html>
+
 
 
