@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema Restaurante</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+<style>
+  body { font-family: 'Roboto', sans-serif; background: #f0f2f5; margin:0; padding:20px; }
+  h1 { text-align:center; color:#2c3e50; margin-bottom:20px; }
+  .mesas-container { display: flex; flex-wrap: wrap; gap: 20px; justify-content:center; }
+  .mesa { background:#fff; border-radius:15px; padding:15px; width:100%; max-width:320px; box-shadow:0 6px 15px rgba(0,0,0,0.15); transition:0.3s; }
+  .mesa:hover { transform: translateY(-3px); box-shadow:0 10px 20px rgba(0,0,0,0.2); }
+  .mesa h3 { text-align:center; color:#34495e; margin-bottom:10px; font-size:1.2em; }
+  .itens { display:flex; flex-direction: column; gap:8px; margin-bottom:10px; max-height:200px; overflow-y:auto; }
+  button { padding:10px 15px; border:none; border-radius:8px; cursor:pointer; font-size:0.95em; transition:0.2s; }
+  button:hover { opacity:0.9; }
+  .item-btn { background:#3498db; color:#fff; text-align:left; font-weight:500; display:flex; justify-content:space-between; align-items:center; }
+  .item-btn i { margin-left:10px; }
+  .finalizar-btn { background:#27ae60; color:#fff; width:100%; font-weight:600; margin-top:8px; }
+  .remover-btn { background:#e74c3c; color:#fff; font-weight:600; border-radius:5px; padding:2px 6px; margin-left:5px; }
+  .fechar-avulso-btn { background:#c0392b; color:#fff; width:100%; margin-top:8px; font-weight:600; }
+  .total-container { text-align:right; font-weight:bold; color:#2c3e50; margin-bottom:12px; font-size:1em; }
+  .add-avulso-btn { background:#f39c12; color:#fff; padding:12px 18px; border:none; border-radius:8px; font-size:1em; font-weight:600; cursor:pointer; transition:0.3s; margin-bottom:20px; display:block; margin-left:auto; margin-right:auto; }
+  .add-avulso-btn:hover { opacity:0.9; }
+  .nota { padding: 20px; width:90%; max-width:360px; border-radius:15px; background: #fff; font-family: 'Courier New', monospace; margin:25px auto; box-shadow:0 8px 16px rgba(0,0,0,0.2); }
+  .nota h2, .nota h3 { text-align: center; margin-bottom: 10px; font-size:1em; }
+  .nota .item { display: flex; justify-content: space-between; margin-bottom: 6px; font-size:0.95em; }
+  .nota .total { font-weight: bold; margin-top: 12px; text-align: right; font-size:1.05em; color:#000000; }
+  .nota img { display:block; margin:0 auto 10px; max-width:90%; height:auto; filter: grayscale(100%); }
+  @media (max-width:600px){
+    .mesas-container { flex-direction: column; align-items: center; }
+    button { font-size:1em; }
+  }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+<h1>Gerenciamento de Mesas - Pipeline Inn</h1>
+<button class="add-avulso-btn" onclick="adicionarAvulso()">Adicionar Conta Avulso</button>
+<div class="mesas-container" id="mesas"></div>
+<script>
+const pratos = [
+  {nome: 'Chicken Sandwich', preco: 40.00},
+  {nome: 'Venison Royale', preco: 43.00},
+  {nome: 'Woodland Steak', preco: 40.00},
+  {nome: 'Drunk Lake', preco: 28.00},
+  {nome: 'Golden Lobster', preco: 33.00},
+  {nome: 'Sunset Bluegill', preco: 45.00},
+  {nome: 'Petit Gateau', preco: 20.00},
+  {nome: 'Henessy', preco: 22.00},
+  {nome: 'Cerveja Patriots', preco: 9.00},
+  {nome: 'Cerveja piBwasser', preco: 11.00},
+  {nome: 'Zach’s Beer', preco: 12.00},
+  {nome: 'Chandon', preco: 100.00},
+  {nome: 'Tequila', preco: 32.00},
+  {nome: 'Café', preco: 8.00},
+  {nome: 'Cola', preco: 5.00},
+  {nome: 'Sprunk', preco: 5.00},
+  {nome: 'Red Pipeline', preco: 20.00},
+  {nome: 'Blue Horizon', preco: 22.00},
+  {nome: 'Desert Spirit', preco: 22.00}
+];
+
+const mesasDiv = document.getElementById('mesas');
+let avulsoCount = 1;
+
+function criarMesa(numero, isAvulso=false){
+  const m=document.createElement('div');
+  m.className='mesa';
+  m.dataset.codigo = numero;
+  let fecharAvulsoBtn = isAvulso ? `<button class='fechar-avulso-btn' onclick='fecharAvulso(this)'>Fechar/Apagar Avulso</button>` : '';
+  m.innerHTML=`<h3>Mesa ${numero}</h3><div class='itens'></div><div class='total-container'>Total: $<span class='total'>0.00</span></div><button class='finalizar-btn' onclick='finalizarMesa(this)'>Finalize Table</button>${fecharAvulsoBtn}`;
+  const itensDiv = m.querySelector('.itens');
+  pratos.forEach(p => {
+    const btn = document.createElement('button');
+    btn.className = 'item-btn';
+    btn.innerHTML = `${p.nome} <i class='fas fa-plus'></i>`;
+    let qtd = 0;
+    btn.onclick = () => {
+      qtd++;
+      atualizarItens(itensDiv, p.nome, qtd, p.preco);
+      atualizarTotal(m);
+    };
+    itensDiv.appendChild(btn);
+  });
+  mesasDiv.appendChild(m);
+}
+
+function adicionarAvulso(){
+  criarMesa(`Avulso-${avulsoCount}`, true);
+  avulsoCount++;
+}
+
+function fecharAvulso(btn){
+  btn.parentElement.remove();
+}
+
+function atualizarItens(container, nome, qtd, preco){
+  let item = container.querySelector(`div[data-nome='${nome}']`);
+  if(!item){
+    item = document.createElement('div');
+    item.dataset.nome = nome;
+    container.appendChild(item);
+  }
+  item.innerHTML = `${nome}: ${qtd} x $${preco.toFixed(2)} = $${(qtd*preco).toFixed(2)} <button class='remover-btn' onclick='removerItem(this, "${nome}", ${preco})'><i class='fas fa-minus'></i></button>`;
+}
+
+function removerItem(btn, nome, preco){
+  const itemDiv = btn.parentElement;
+  let qtd = parseInt(itemDiv.textContent.split(':')[1].split(' x')[0].trim());
+  qtd--;
+  const mesaDiv = itemDiv.closest('.mesa');
+  if(qtd<=0){ itemDiv.remove(); } else {
+    itemDiv.innerHTML = `${nome}: ${qtd} x $${preco.toFixed(2)} = $${(qtd*preco).toFixed(2)} <button class='remover-btn' onclick='removerItem(this, "${nome}", ${preco})'><i class='fas fa-minus'></i></button>`;
+  }
+  atualizarTotal(mesaDiv);
+}
+
+function atualizarTotal(mesaDiv){
+  let total=0;
+  mesaDiv.querySelectorAll('.itens div').forEach(i=>{
+    total += parseFloat(i.textContent.split('= $')[1]);
+  });
+  total *= 1.2;
+  mesaDiv.querySelector('.total').textContent = total.toFixed(2);
+}
+
+function finalizarMesa(btn){
+  const mesaDiv = btn.parentElement;
+  const mesaNumero = mesaDiv.querySelector('h3').textContent;
+  const itens = mesaDiv.querySelectorAll('.itens div');
+  if(itens.length===0) return;
+  const notaDiv = document.createElement('div');
+  notaDiv.className='nota';
+  const dataHoje = new Date().toLocaleDateString();
+  notaDiv.innerHTML=`<h2>The Famous Pipeline Inn Restaurant & Bar</h2><h3>${mesaNumero}</h3><p style='text-align:center;'>Date: ${dataHoje}</p>`;
+  let subtotal=0;
+  itens.forEach(i=>{
+    const nome=i.textContent.split(':')[0];
+    const valor=parseFloat(i.textContent.split('= $')[1]);
+    subtotal+=valor;
+    notaDiv.innerHTML+=`<div class='item'><span>${nome}</span><span>$${valor.toFixed(2)}</span></div>`;
+  });
+  const total=subtotal*1.2;
+  notaDiv.innerHTML+=`<div class='item'><span>Service Fee (20%)</span><span>$${(total-subtotal).toFixed(2)}</span></div>`;
+  notaDiv.innerHTML+=`<div class='total'>Total: $${total.toFixed(2)}</div>`;
+  document.body.appendChild(notaDiv);
+  html2canvas(notaDiv).then(canvas=>{
+    const link=document.createElement('a');
+    link.download=`receipt_${mesaNumero}.png`;
+    link.href=canvas.toDataURL('image/png');
+    link.click();
+    notaDiv.remove();
+  });
+}
+
+for(let i=1;i<=9;i++) criarMesa(i);
+</script>
+</body>
+</html>
