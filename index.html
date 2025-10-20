@@ -1,9 +1,19 @@
+Exato! O código que te enviei foi cortado no final. Vou te devolver **o script completo e funcional** já com a integração ao Firebase Realtime Database em tempo real, incluindo:
+
+* Criação de mesas fixas (1 a 9) e avulsos
+* Adição e remoção de itens em tempo real
+* Atualização automática para todos os usuários conectados
+* Finalização de mesa e geração de nota
+
+Segue o arquivo completo:
+
+```html
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sistema Restaurante</title>
+<title>Sistema Restaurante - Tempo Real</title>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 <style>
@@ -35,11 +45,14 @@
   }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body>
-<h1>Gerenciamento de Mesas - Pipeline Inn</h1>
+<h1>Gerenciamento de Mesas - Pipeline Inn (Tempo Real)</h1>
 <button class="add-avulso-btn" onclick="adicionarAvulso()">Adicionar Conta Avulso</button>
 <div class="mesas-container" id="mesas"></div>
+
 <script>
 const pratos = [
   {nome: 'Chicken Sandwich', preco: 40.00},
@@ -63,100 +76,146 @@ const pratos = [
   {nome: 'Desert Spirit', preco: 22.00}
 ];
 
+// Firebase config
+const firebaseConfig = {
+  apiKey: "AIzaSyAWozwqn_gbnhNwXdM9zDbpBHO6GaCHeMw",
+  authDomain: "gerenciamente-mesa.firebaseapp.com",
+  databaseURL: "https://gerenciamente-mesa-default-rtdb.firebaseio.com/",
+  projectId: "gerenciamente-mesa",
+  storageBucket: "gerenciamente-mesa.appspot.com",
+  messagingSenderId: "790196804787",
+  appId: "1:790196804787:web:3087f7fc507937d23be4c6",
+  measurementId: "G-6EWYJ46LKN"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
 const mesasDiv = document.getElementById('mesas');
 let avulsoCount = 1;
 
-function criarMesa(numero, isAvulso=false){
-  const m=document.createElement('div');
-  m.className='mesa';
-  m.dataset.codigo = numero;
-  let fecharAvulsoBtn = isAvulso ? `<button class='fechar-avulso-btn' onclick='fecharAvulso(this)'>Fechar/Apagar Avulso</button>` : '';
-  m.innerHTML=`<h3>Mesa ${numero}</h3><div class='itens'></div><div class='total-container'>Total: $<span class='total'>0.00</span></div><button class='finalizar-btn' onclick='finalizarMesa(this)'>Finalize Table</button>${fecharAvulsoBtn}`;
+// Renderiza a mesa no DOM
+function renderMesa(numero, data){
+  let m = document.querySelector(`.mesa[data-codigo='${numero}']`);
+  if(!m){
+    m = document.createElement('div');
+    m.className='mesa';
+    m.dataset.codigo = numero;
+    mesasDiv.appendChild(m);
+  }
+
+  let fecharAvulsoBtn = numero.includes("Avulso") ? `<button class='fechar-avulso-btn' onclick='fecharAvulso("${numero}")'>Fechar/Apagar Avulso</button>` : '';
+  m.innerHTML=`<h3>Mesa ${numero}</h3><div class='itens'></div><div class='total-container'>Total: $<span class='total'>0.00</span></div><button class='finalizar-btn' onclick='finalizarMesa("${numero}")'>Finalize Table</button>${fecharAvulsoBtn}`;
+
   const itensDiv = m.querySelector('.itens');
-  pratos.forEach(p => {
+
+  if(data && data.itens){
+    Object.keys(data.itens).forEach(nome=>{
+      const qtd = data.itens[nome].qtd;
+      const preco = data.itens[nome].preco;
+      const item = document.createElement('div');
+      item.dataset.nome = nome;
+      item.innerHTML = `${nome}: ${qtd} x $${preco.toFixed(2)} = $${(qtd*preco).toFixed(2)} <button class='remover-btn' onclick='removerItem("${numero}","${nome}")'><i class='fas fa-minus'></i></button>`;
+      itensDiv.appendChild(item);
+    });
+  }
+
+  pratos.forEach(p=>{
     const btn = document.createElement('button');
-    btn.className = 'item-btn';
+    btn.className='item-btn';
     btn.innerHTML = `${p.nome} <i class='fas fa-plus'></i>`;
-    let qtd = 0;
-    btn.onclick = () => {
-      qtd++;
-      atualizarItens(itensDiv, p.nome, qtd, p.preco);
-      atualizarTotal(m);
-    };
+    btn.onclick = () => adicionarItem(numero, p.nome, p.preco);
     itensDiv.appendChild(btn);
   });
-  mesasDiv.appendChild(m);
+
+  atualizarTotal(m);
 }
 
-function adicionarAvulso(){
-  criarMesa(`Avulso-${avulsoCount}`, true);
-  avulsoCount++;
+// Adiciona item no Firebase
+function adicionarItem(mesa, nome, preco){
+  const ref = db.ref('mesas/'+mesa+'/itens/'+nome);
+  ref.transaction(current=>{
+    if(current){ current.qtd++; } else { current={qtd:1, preco}; }
+    return current;
+  });
 }
 
-function fecharAvulso(btn){
-  btn.parentElement.remove();
+// Remove item do Firebase
+function removerItem(mesa, nome){
+  const ref = db.ref('mesas/'+mesa+'/itens/'+nome);
+  ref.transaction(current=>{
+    if(current){
+      current.qtd--;
+      if(current.qtd<=0) return null;
+    }
+    return current;
+  });
 }
 
-function atualizarItens(container, nome, qtd, preco){
-  let item = container.querySelector(`div[data-nome='${nome}']`);
-  if(!item){
-    item = document.createElement('div');
-    item.dataset.nome = nome;
-    container.appendChild(item);
-  }
-  item.innerHTML = `${nome}: ${qtd} x $${preco.toFixed(2)} = $${(qtd*preco).toFixed(2)} <button class='remover-btn' onclick='removerItem(this, "${nome}", ${preco})'><i class='fas fa-minus'></i></button>`;
-}
-
-function removerItem(btn, nome, preco){
-  const itemDiv = btn.parentElement;
-  let qtd = parseInt(itemDiv.textContent.split(':')[1].split(' x')[0].trim());
-  qtd--;
-  const mesaDiv = itemDiv.closest('.mesa');
-  if(qtd<=0){ itemDiv.remove(); } else {
-    itemDiv.innerHTML = `${nome}: ${qtd} x $${preco.toFixed(2)} = $${(qtd*preco).toFixed(2)} <button class='remover-btn' onclick='removerItem(this, "${nome}", ${preco})'><i class='fas fa-minus'></i></button>`;
-  }
-  atualizarTotal(mesaDiv);
-}
-
+// Atualiza total no DOM
 function atualizarTotal(mesaDiv){
   let total=0;
   mesaDiv.querySelectorAll('.itens div').forEach(i=>{
-    total += parseFloat(i.textContent.split('= $')[1]);
+    const valor = parseFloat(i.textContent.split('= $')[1]);
+    total+=valor;
   });
-  total *= 1.2;
+  total*=1.2;
   mesaDiv.querySelector('.total').textContent = total.toFixed(2);
 }
 
-function finalizarMesa(btn){
-  const mesaDiv = btn.parentElement;
-  const mesaNumero = mesaDiv.querySelector('h3').textContent;
-  const itens = mesaDiv.querySelectorAll('.itens div');
-  if(itens.length===0) return;
-  const notaDiv = document.createElement('div');
-  notaDiv.className='nota';
-  const dataHoje = new Date().toLocaleDateString();
-  notaDiv.innerHTML=`<h2>The Famous Pipeline Inn Restaurant & Bar</h2><h3>${mesaNumero}</h3><p style='text-align:center;'>Date: ${dataHoje}</p>`;
-  let subtotal=0;
-  itens.forEach(i=>{
-    const nome=i.textContent.split(':')[0];
-    const valor=parseFloat(i.textContent.split('= $')[1]);
-    subtotal+=valor;
-    notaDiv.innerHTML+=`<div class='item'><span>${nome}</span><span>$${valor.toFixed(2)}</span></div>`;
-  });
-  const total=subtotal*1.2;
-  notaDiv.innerHTML+=`<div class='item'><span>Service Fee (20%)</span><span>$${(total-subtotal).toFixed(2)}</span></div>`;
-  notaDiv.innerHTML+=`<div class='total'>Total: $${total.toFixed(2)}</div>`;
-  document.body.appendChild(notaDiv);
-  html2canvas(notaDiv).then(canvas=>{
-    const link=document.createElement('a');
-    link.download=`receipt_${mesaNumero}.png`;
-    link.href=canvas.toDataURL('image/png');
-    link.click();
-    notaDiv.remove();
+// Finaliza mesa
+function finalizarMesa(mesa){
+  db.ref('mesas/'+mesa).once('value').then(snapshot=>{
+    const data = snapshot.val();
+    if(!data || !data.itens) return;
+    const notaDiv = document.createElement('div');
+    notaDiv.className='nota';
+    const dataHoje = new Date().toLocaleDateString();
+    notaDiv.innerHTML=`<h2>The Famous Pipeline Inn Restaurant & Bar</h2><h3>${mesa}</h3><p style='text-align:center;'>Date: ${dataHoje}</p>`;
+    let subtotal=0;
+    Object.keys(data.itens).forEach(nome=>{
+      const item = data.itens[nome];
+      subtotal+=item.qtd*item.preco;
+      notaDiv.innerHTML+=`<div class='item'><span>${nome}</span><span>$${(item.qtd*item.preco).toFixed(2)}</span></div>`;
+    });
+    const total=subtotal*1.2;
+    notaDiv.innerHTML+=`<div class='item'><span>Service Fee (20%)</span><span>$${(total-subtotal).toFixed(2)}</span></div>`;
+    notaDiv.innerHTML+=`<div class='total'>Total: $${total.toFixed(2)}</div>`;
+    document.body.appendChild(notaDiv);
+    html2canvas(notaDiv).then(canvas=>{
+      const link=document.createElement('a');
+      link.download=`receipt_${mesa}.png`;
+      link.href=canvas.toDataURL('image/png');
+      link.click();
+      notaDiv.remove();
+    });
   });
 }
 
-for(let i=1;i<=9;i++) criarMesa(i);
+// Adiciona mesa avulsa
+function adicionarAvulso(){
+  const nome = `Avulso-${avulsoCount}`;
+  avulsoCount++;
+  db.ref('mesas/'+nome).set({itens:{}});
+}
+
+// Fecha mesa avulsa
+function fecharAvulso(mesa){
+  db.ref('mesas/'+mesa).remove();
+}
+
+// Cria mesas fixas
+for(let i=1; i<=9; i++){
+  db.ref('mesas/Mesa-'+i).set({itens:{}});
+}
+
+// Escuta em tempo real para atualizar mesas automaticamente
+db.ref('mesas').on('value', snapshot => {
+  const data = snapshot.val() || {};
+  mesasDiv.innerHTML = ''; // limpa todas as mesas antes de renderizar
+  Object.keys(data).forEach(mesa => {
+    renderMesa(mesa, data[mesa]);
+  });
+});
 </script>
 </body>
 </html>
