@@ -24,6 +24,8 @@
   .total-container { text-align:right; font-weight:bold; color:#2c3e50; margin-bottom:12px; font-size:1em; }
   .add-avulso-btn { background:#f39c12; color:#fff; padding:12px 18px; border:none; border-radius:8px; font-size:1em; font-weight:600; cursor:pointer; transition:0.3s; margin-bottom:20px; display:block; margin-left:auto; margin-right:auto; }
   .add-avulso-btn:hover { opacity:0.9; }
+  .taxa-container { margin-bottom: 10px; }
+  .taxa-container select { padding: 5px; border: 1px solid #ccc; border-radius: 5px; }
   .nota {
   padding: 40px;
   width: 210mm;        /* Largura A4 */
@@ -101,8 +103,21 @@ function criarMesa(numero, isAvulso=false){
   const m=document.createElement('div');
   m.className='mesa';
   m.dataset.codigo = numero;
+  m.dataset.taxa = 20; // Taxa de serviço em porcentagem
   let fecharAvulsoBtn = isAvulso ? `<button class='fechar-avulso-btn' onclick='fecharAvulso(this)'>Fechar/Apagar Avulso</button>` : '';
-  m.innerHTML=`<h3>Mesa ${numero}</h3><div class='itens'></div><div class='total-container'>Total: $<span class='total'>0.00</span></div><button class='finalizar-btn' onclick='finalizarMesa(this)'>Finalize Table</button>${fecharAvulsoBtn}`;
+  m.innerHTML=`<h3>Mesa ${numero}</h3>
+    <div class='taxa-container'>
+      <label>Taxa de Serviço: </label>
+      <select onchange='mudarTaxa(this)'>
+        <option value='0'>0%</option>
+        <option value='10'>10%</option>
+        <option value='20' selected>20%</option>
+        <option value='25'>25%</option>
+      </select>
+    </div>
+    <div class='itens'></div>
+    <div class='total-container'>Total: $<span class='total'>0.00</span></div>
+    <button class='finalizar-btn' onclick='finalizarMesa(this)'>Finalize Table</button>${fecharAvulsoBtn}`;
   const itensDiv = m.querySelector('.itens');
   pratos.forEach(p => {
     const btn = document.createElement('button');
@@ -128,6 +143,12 @@ function fecharAvulso(btn){
   btn.parentElement.remove();
 }
 
+function mudarTaxa(select){
+  const mesaDiv = select.closest('.mesa');
+  mesaDiv.dataset.taxa = parseInt(select.value);
+  atualizarTotal(mesaDiv);
+}
+
 function atualizarItens(container, nome, qtd, preco){
   let item = container.querySelector(`div[data-nome='${nome}']`);
   if(!item){
@@ -150,11 +171,12 @@ function removerItem(btn, nome, preco){
 }
 
 function atualizarTotal(mesaDiv){
-  let total=0;
+  let subtotal=0;
   mesaDiv.querySelectorAll('.itens div').forEach(i=>{
-    total += parseFloat(i.textContent.split('= $')[1]);
+    subtotal += parseFloat(i.textContent.split('= $')[1]);
   });
-  total *= 1.2;
+  const taxa = parseFloat(mesaDiv.dataset.taxa) / 100;
+  const total = subtotal * (1 + taxa);
   mesaDiv.querySelector('.total').textContent = total.toFixed(2);
 }
 
@@ -174,8 +196,10 @@ function finalizarMesa(btn){
     subtotal+=valor;
     notaDiv.innerHTML+=`<div class='item'><span>${nome}</span><span>$${valor.toFixed(2)}</span></div>`;
   });
-  const total=subtotal*1.2;
-  notaDiv.innerHTML+=`<div class='item'><span>Service Fee (20%)</span><span>$${(total-subtotal).toFixed(2)}</span></div>`;
+  const taxa = parseFloat(mesaDiv.dataset.taxa) / 100;
+  const taxaValor = subtotal * taxa;
+  const total = subtotal * (1 + taxa);
+  notaDiv.innerHTML+=`<div class='item'><span>Service Fee (${(taxa*100).toFixed(0)}%)</span><span>$${taxaValor.toFixed(2)}</span></div>`;
   notaDiv.innerHTML+=`<div class='total'>Total: $${total.toFixed(2)}</div>`;
   document.body.appendChild(notaDiv);
   html2canvas(notaDiv).then(canvas=>{
@@ -191,6 +215,3 @@ for(let i=1;i<=14;i++) criarMesa(i);
 </script>
 </body>
 </html>
-
-
-
