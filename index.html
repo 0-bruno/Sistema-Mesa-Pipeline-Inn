@@ -1,21 +1,18 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Sistema Restaurante - Pipeline Inn</title>
-
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema Restaurante</title>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-
 <style>
   body { font-family: 'Roboto', sans-serif; background: #f0f2f5; margin:0; padding:20px; }
   h1 { text-align:center; color:#2c3e50; margin-bottom:20px; }
-  .top-actions { display:flex; justify-content:center; gap:12px; margin-bottom:16px; flex-wrap:wrap;}
   .mesas-container { display: flex; flex-wrap: wrap; gap: 20px; justify-content:center; }
   .mesa { background:#fff; border-radius:15px; padding:15px; width:100%; max-width:320px; box-shadow:0 6px 15px rgba(0,0,0,0.15); transition:0.3s; }
   .mesa:hover { transform: translateY(-3px); box-shadow:0 10px 20px rgba(0,0,0,0.2); }
-  .mesa.preenchida { background: #e8f5e8; } /* Cor verde clara para mesas preenchidas */
+  .mesa.preenchida { background: #e8f5e8; }
   .mesa h3 { text-align:center; color:#34495e; margin-bottom:10px; font-size:1.2em; }
   .itens { display:flex; flex-direction: column; gap:8px; margin-bottom:10px; max-height:200px; overflow-y:auto; }
   .categoria { font-weight: bold; color: #2c3e50; margin-top: 10px; margin-bottom: 5px; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
@@ -30,484 +27,142 @@
   .total-container { text-align:right; font-weight:bold; color:#2c3e50; margin-bottom:12px; font-size:1em; }
   .add-avulso-btn { background:#f39c12; color:#fff; padding:12px 18px; border:none; border-radius:8px; font-size:1em; font-weight:600; cursor:pointer; transition:0.3s; margin-bottom:20px; display:block; margin-left:auto; margin-right:auto; }
   .add-avulso-btn:hover { opacity:0.9; }
-  .taxa-container { margin-bottom: 10px; }
-  .taxa-container select { padding: 5px; border: 1px solid #ccc; border-radius: 5px; }
-  .mudanca-container { margin-bottom: 10px; }
-  .mudanca-container select { padding: 5px; border: 1px solid #ccc; border-radius: 5px; }
-  .mudanca-container button { background: #9b59b6; color: #fff; margin-left: 5px; }
-  .nota {
-    padding: 20px;
-    width: 80mm;        /* Largura típica de recibo */
-    min-height: 150mm;  /* Altura mínima */
-    border-radius: 5px;
-    background: #fff;
-    font-family: 'Courier New', monospace;
-    font-size: 12px;
-    margin: 20px auto;
-    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
-    overflow: hidden;
-    border: 1px solid #ccc;
-    line-height: 1.4;
-  }
-  .nota .header { text-align: center; border-bottom: 1px dashed #000; padding-bottom: 10px; margin-bottom: 10px; }
-  .nota .header h2 { font-size: 16px; margin: 0; font-weight: bold; }
-  .nota .header p { margin: 2px 0; font-size: 10px; }
-  .nota .info { text-align: center; margin-bottom: 10px; font-size: 10px; }
-  .nota .item { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 12px; }
-  .nota .item .qty { width: 20px; text-align: left; }
-  .nota .item .name { flex: 1; text-align: left; }
-  .nota .item .price { width: 40px; text-align: right; }
-  .nota .subtotal, .nota .tax, .nota .total { display: flex; justify-content: space-between; margin-top: 10px; padding-top: 5px; border-top: 1px dashed #000; font-weight: bold; }
-  .nota .footer { text-align: center; margin-top: 20px; font-size: 10px; border-top: 1px dashed #000; padding-top: 10px; }
-
-  @media (max-width:600px){
-    .mesas-container { flex-direction: column; align-items: center; }
-    button { font-size:1em; }
-  }
+  @media (max-width:600px){ .mesas-container { flex-direction: column; align-items: center; } button { font-size:1em; } }
 </style>
+<!-- Firebase -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-app.js";
+  import { getDatabase, ref, set, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-database.js";
 
-<!-- html2canvas (mantive para gerar nota png) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyAgXD5wTsSjSltBU1U_xJjrwWAHBQKhrAU",
+    authDomain: "sistemarestaurante-99ae3.firebaseapp.com",
+    databaseURL: "https://sistemarestaurante-99ae3-default-rtdb.firebaseio.com",
+    projectId: "sistemarestaurante-99ae3",
+    storageBucket: "sistemarestaurante-99ae3.appspot.com",
+    messagingSenderId: "1045953751805",
+    appId: "1:1045953751805:web:b5ee94a478dbb2cf8d6c94",
+    measurementId: "G-G05BMHMNQ5"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  const categorias = {
+    "Pratos":[{nome:'Chicken Sandwich',preco:40},{nome:'Venison Royale',preco:43},{nome:'Woodland Steak',preco:40},{nome:'Drunk Lake',preco:28},{nome:'Golden Lobster',preco:33},{nome:'Sunset Bluegill',preco:45}],
+    "Sobremesas":[{nome:'Petit Gateau',preco:20}],
+    "Bebidas Alcoólicas":[{nome:'Henessy',preco:22},{nome:'Cerveja Patriots',preco:9},{nome:'Cerveja piBwasser',preco:11},{nome:"Zach’s Beer",preco:12},{nome:'Chandon',preco:100},{nome:'Tequila',preco:32}],
+    "Bebidas":[{nome:'Café',preco:8},{nome:'Cola',preco:5},{nome:'Sprunk',preco:5},{nome:'Red Pipeline',preco:20},{nome:'Blue Horizon',preco:22},{nome:'Desert Spirit',preco:22}]
+  };
+
+  const mesasDiv = document.getElementById('mesas');
+  let avulsoCount = 1;
+
+  function criarMesa(codigo, isAvulso=false){
+    if(document.getElementById(codigo)) return; // Evita duplicar
+    const m=document.createElement('div');
+    m.className='mesa';
+    m.id=codigo;
+    m.dataset.codigo=codigo;
+    m.dataset.taxa=20;
+    m.innerHTML=`<h3>${codigo}</h3><div class='itens'></div>
+      <div class='total-container'>Total: $<span class='total'>0.00</span></div>
+      <button class='limpar-btn'>Limpar Mesa</button>
+      <button class='finalizar-btn'>Finalize Table</button>
+      ${isAvulso?`<button class='fechar-avulso-btn'>Fechar Avulso</button>`:''}`;
+    mesasDiv.appendChild(m);
+
+    // Eventos locais
+    m.querySelector('.limpar-btn').onclick=()=>limparMesa(codigo);
+    if(isAvulso) m.querySelector('.fechar-avulso-btn').onclick=()=>removerMesa(codigo);
+
+    // Carregar itens
+    const itensDiv=m.querySelector('.itens');
+    for(const [cat, pratos] of Object.entries(categorias)){
+      const catDiv=document.createElement('div');
+      catDiv.className='categoria';
+      catDiv.textContent=cat;
+      itensDiv.appendChild(catDiv);
+      pratos.forEach(p=>{
+        const btn=document.createElement('button');
+        btn.className='item-btn';
+        btn.innerHTML=`${p.nome} <i class='fas fa-plus'></i>`;
+        btn.onclick=()=>adicionarItem(codigo, p.nome, p.preco);
+        itensDiv.appendChild(btn);
+      });
+    }
+  }
+
+  // Firebase Realtime
+  function atualizarMesaFirebase(codigo, itens){
+    set(ref(db, 'mesas/'+codigo), {itens});
+  }
+
+  function adicionarItem(codigo, nome, preco){
+    const mesaRef=ref(db,'mesas/'+codigo+'/itens');
+    onValue(mesaRef, snap=>{
+      let itens=snap.val()||{};
+      if(itens[nome]) itens[nome].qtd++;
+      else itens[nome]={preco,qtd:1};
+      set(mesaRef,itens);
+    }, {onlyOnce:true});
+  }
+
+  function limparMesa(codigo){
+    remove(ref(db,'mesas/'+codigo+'/itens'));
+  }
+
+  function removerMesa(codigo){
+    remove(ref(db,'mesas/'+codigo));
+    document.getElementById(codigo).remove();
+  }
+
+  // Observa mudanças em tempo real
+  onValue(ref(db,'mesas/'), snapshot=>{
+    const data=snapshot.val()||{};
+    for(const [codigo, mesa] of Object.entries(data)){
+      criarMesa(codigo);
+      const itensDiv=document.getElementById(codigo).querySelector('.itens');
+      itensDiv.querySelectorAll("div[data-nome]").forEach(d=>d.remove());
+      let total=0;
+      for(const [nome,item] of Object.entries(mesa.itens||{})){
+        const div=document.createElement('div');
+        div.dataset.nome=nome;
+        div.innerHTML=`${nome}: ${item.qtd} x $${item.preco.toFixed(2)} = $${(item.qtd*item.preco).toFixed(2)} 
+          <button class='remover-btn'>-</button>`;
+        div.querySelector('.remover-btn').onclick=()=>removerItem(codigo,nome);
+        itensDiv.appendChild(div);
+        total+=item.qtd*item.preco;
+      }
+      document.getElementById(codigo).querySelector('.total').textContent=total.toFixed(2);
+      document.getElementById(codigo).classList.toggle('preenchida', total>0);
+    }
+  });
+
+  function removerItem(codigo,nome){
+    const mesaRef=ref(db,'mesas/'+codigo+'/itens/'+nome);
+    onValue(mesaRef,snap=>{
+      let item=snap.val();
+      if(!item) return;
+      if(item.qtd<=1) remove(mesaRef);
+      else update(mesaRef,{qtd:item.qtd-1});
+    }, {onlyOnce:true});
+  }
+
+  // Criação inicial das mesas
+  ['P1','P2','P3','P4','P5','M1','M2','M3','M4','B1','B2','B3','B4'].forEach(c=>criarMesa(c));
+
+  // Adicionar Avulso
+  document.querySelector('.add-avulso-btn').onclick=()=>{
+    criarMesa('Avulso-'+avulsoCount,true);
+    avulsoCount++;
+  };
+
+</script>
 </head>
 <body>
 <h1>Gerenciamento de Mesas - Pipeline Inn</h1>
-<div class="top-actions">
-  <button class="add-avulso-btn" onclick="adicionarAvulso()">Adicionar Conta Avulso</button>
-  <button onclick="downloadEstado()" style="background:#2980b9;color:#fff;padding:10px 12px;border-radius:8px">Exportar Estado (console)</button>
-</div>
-
+<button class="add-avulso-btn">Adicionar Conta Avulso</button>
 <div class="mesas-container" id="mesas"></div>
-
-<script type="module">
-/* =========================
-   Firebase imports (CDN)
-   ========================= */
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
-import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-analytics.js";
-import { getDatabase, ref, set, onValue, remove, update } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-database.js";
-
-/* =========================
-   Config - substitua se necessário
-   (você já nos passou esses dados)
-   ========================= */
-const firebaseConfig = {
-  apiKey: "AIzaSyAgXD5wTsSjSltBU1U_xJjrwWAHBQKhrAU",
-  authDomain: "sistemarestaurante-99ae3.firebaseapp.com",
-  databaseURL: "https://sistemarestaurante-99ae3-default-rtdb.firebaseio.com",
-  projectId: "sistemarestaurante-99ae3",
-  storageBucket: "sistemarestaurante-99ae3.firebasestorage.app",
-  messagingSenderId: "1045953751805",
-  appId: "1:1045953751805:web:b5ee94a478dbb2cf8d6c94",
-  measurementId: "G-G05BMHMNQ5"
-};
-
-const app = initializeApp(firebaseConfig);
-try { const analytics = getAnalytics(app); } catch(e){ /* analytics pode falhar em alguns contexts */ }
-const db = getDatabase(app);
-
-/* =========================
-   Cardápio (dados locais)
-   ========================= */
-const categorias = {
-  "Pratos": [
-    {nome: 'Chicken Sandwich', preco: 40.00},
-    {nome: 'Venison Royale', preco: 43.00},
-    {nome: 'Woodland Steak', preco: 40.00},
-    {nome: 'Drunk Lake', preco: 28.00},
-    {nome: 'Golden Lobster', preco: 33.00},
-    {nome: 'Sunset Bluegill', preco: 45.00}
-  ],
-  "Sobremesas": [
-    {nome: 'Petit Gateau', preco: 20.00}
-  ],
-  "Bebidas Alcoólicas": [
-    {nome: 'Henessy', preco: 22.00},
-    {nome: 'Cerveja Patriots', preco: 9.00},
-    {nome: 'Cerveja piBwasser', preco: 11.00},
-    {nome: 'Zach’s Beer', preco: 12.00},
-    {nome: 'Chandon', preco: 100.00},
-    {nome: 'Tequila', preco: 32.00}
-  ],
-  "Bebidas": [
-    {nome: 'Café', preco: 8.00},
-    {nome: 'Cola', preco: 5.00},
-    {nome: 'Sprunk', preco: 5.00},
-    {nome: 'Red Pipeline', preco: 20.00},
-    {nome: 'Blue Horizon', preco: 22.00},
-    {nome: 'Desert Spirit', preco: 22.00}
-  ]
-};
-
-/* =========================
-   Estado local
-   ========================= */
-const mesasDiv = document.getElementById('mesas');
-let avulsoCount = 1;
-let mesas = []; // referências DOM das mesas
-let pedidoGlobalCount = 1;
-
-/* =========================
-   Funções Firebase
-   ========================= */
-function salvarMesaFirebase(codigo, data) {
-  // data deve ser um objeto simples (JSON serializable)
-  set(ref(db, 'mesas/' + codigo), data).catch(err => console.error('Erro salvarMesaFirebase', err));
-}
-
-function removerMesaFirebase(codigo) {
-  remove(ref(db, 'mesas/' + codigo)).catch(err => console.error('Erro removerMesaFirebase', err));
-}
-
-// Monitora alterações em todas mesas e aplica no cliente
-onValue(ref(db, 'mesas'), snapshot => {
-  const dados = snapshot.val() || {};
-  // Atualiza/Cria mesas com base nos dados do banco
-  // Para simplicidade, vamos: para cada mesa no DB, garantir que exista no DOM e espelhar itens/total/taxa.
-  const codigosNoDB = Object.keys(dados);
-
-  // Criar qualquer mesa que exista no DB mas não no DOM
-  codigosNoDB.forEach(codigo => {
-    const existe = mesas.find(m => m.dataset.codigo === codigo);
-    if(!existe) {
-      criarMesa(codigo, codigo.startsWith('Avulso-'));
-    }
-    // Atualizar estado DOM para bater com DB (itens / total / taxa)
-    const mesaDiv = mesas.find(m => m.dataset.codigo === codigo);
-    if(mesaDiv) aplicarEstadoLocal(mesaDiv, dados[codigo]);
-  });
-
-  // Remover mesas no DOM que não existem no DB (opcional: se você não quer que remoção remova DOM, altere aqui)
-  mesas.slice().forEach(m => {
-    if(!codigosNoDB.includes(m.dataset.codigo)) {
-      // remover do DOM e do array local
-      m.remove();
-      mesas = mesas.filter(x => x !== m);
-    }
-  });
-
-  atualizarSelects(); // sempre atualizar selects após sync
-});
-
-/* =========================
-   Criação / UI mesas
-   ========================= */
-function criarMesa(numero, isAvulso=false){
-  // if já existe, retorna
-  if(mesas.find(m=>m.dataset.codigo===String(numero))) return;
-
-  const m=document.createElement('div');
-  m.className='mesa';
-  m.dataset.codigo = String(numero);
-  m.dataset.taxa = 20; // padrão 20%
-  let fecharAvulsoBtn = isAvulso ? `<button class='fechar-avulso-btn' onclick='fecharAvulso(this)'>Fechar/Apagar Avulso</button>` : '';
-  m.innerHTML=`<h3>${numero}</h3>
-    <div class='mudanca-container'>
-      <label>Mudar para: </label>
-      <select id='select-${numero}'></select>
-      <button onclick='mudarMesa(this)'>Transferir</button>
-    </div>
-    <div class='taxa-container'>
-      <label>Taxa de Serviço: </label>
-      <select onchange='mudarTaxa(this)'>
-        <option value='0'>0%</option>
-        <option value='10'>10%</option>
-        <option value='20' selected>20%</option>
-        <option value='25'>25%</option>
-      </select>
-    </div>
-    <div class='itens'></div>
-    <div class='total-container'>Total: $<span class='total'>0.00</span></div>
-    <button class='limpar-btn' onclick='limparMesa(this)'>Limpar Mesa</button>
-    <button class='finalizar-btn' onclick='finalizarMesa(this)'>Finalize Table</button>
-    ${fecharAvulsoBtn}`;
-
-  const itensDiv = m.querySelector('.itens');
-
-  // montar cardápio dentro da mesa para fácil clique (opcional)
-  for (const [categoriaNome, pratos] of Object.entries(categorias)) {
-    const categoriaDiv = document.createElement('div');
-    categoriaDiv.className = 'categoria';
-    categoriaDiv.textContent = categoriaNome;
-    itensDiv.appendChild(categoriaDiv);
-    pratos.forEach(p => {
-      const btn = document.createElement('button');
-      btn.className = 'item-btn';
-      btn.innerHTML = `${p.nome} <i class='fas fa-plus'></i> <span style="margin-left:8px;font-weight:700;">$${p.preco.toFixed(2)}</span>`;
-      let qtd = 0;
-      btn.onclick = () => {
-        qtd++;
-        atualizarItens(itensDiv, p.nome, qtd, p.preco);
-        atualizarTotal(m);
-        salvarEstadoMesa(m); // salva ao vivo
-      };
-      itensDiv.appendChild(btn);
-    });
-  }
-
-  mesasDiv.appendChild(m);
-  mesas.push(m);
-  atualizarSelects();
-}
-
-function adicionarAvulso(){
-  const codigo = `Avulso-${avulsoCount++}`;
-  criarMesa(codigo, true);
-  // inicializa no Firebase
-  salvarMesaFirebase(codigo, {itens: [], total: "0.00", taxa: 20});
-}
-
-function fecharAvulso(btn){
-  const mesaDiv = btn.parentElement;
-  const codigo = mesaDiv.dataset.codigo;
-  mesas = mesas.filter(m => m !== mesaDiv); // Remover da lista local
-  mesaDiv.remove();
-  // remover do firebase
-  removerMesaFirebase(codigo);
-  atualizarSelects();
-}
-
-function atualizarSelects(){
-  mesas.forEach(m => {
-    const select = m.querySelector('select');
-    if(!select) return;
-    select.innerHTML = '<option value="">Selecione Mesa</option>';
-    mesas.forEach(otherM => {
-      if(otherM !== m){
-        const opt = document.createElement('option');
-        opt.value = otherM.dataset.codigo;
-        opt.textContent = otherM.dataset.codigo;
-        select.appendChild(opt);
-      }
-    });
-  });
-}
-
-function mudarMesa(btn){
-  const mesaDiv = btn.closest('.mesa');
-  const select = mesaDiv.querySelector('select');
-  const destinoCodigo = select.value;
-  if(!destinoCodigo) return;
-  const destinoMesa = mesas.find(m => m.dataset.codigo === destinoCodigo);
-  if(!destinoMesa) return;
-
-  // Transferir itens (merge)
-  const itensOrigem = Array.from(mesaDiv.querySelectorAll('.itens div[data-nome]'));
-  itensOrigem.forEach(item => {
-    // se nome já existe no destino, somar qtd; senão clonar
-    const nome = item.dataset.nome;
-    const qtd = parseInt(item.dataset.qtd);
-    const preco = parseFloat(item.dataset.preco);
-    const existente = destinoMesa.querySelector(`.itens div[data-nome='${nome}']`);
-    if(existente){
-      const novaQtd = parseInt(existente.dataset.qtd) + qtd;
-      atualizarItens(destinoMesa.querySelector('.itens'), nome, novaQtd, preco, true);
-    } else {
-      // append clone
-      const newDiv = item.cloneNode(true);
-      destinoMesa.querySelector('.itens').appendChild(newDiv);
-    }
-    item.remove();
-  });
-
-  // atualizar totais e salvar ambos
-  atualizarTotal(mesaDiv);
-  atualizarTotal(destinoMesa);
-  salvarEstadoMesa(mesaDiv);
-  salvarEstadoMesa(destinoMesa);
-
-  select.value = ''; // Resetar select
-}
-
-function limparMesa(btn){
-  const mesaDiv = btn.closest('.mesa');
-  // Remover apenas os itens adicionados (divs com data-nome)
-  mesaDiv.querySelectorAll('.itens div[data-nome]').forEach(div => div.remove());
-  // Resetar taxa para 20%
-  mesaDiv.dataset.taxa = 20;
-  const sel = mesaDiv.querySelector('.taxa-container select');
-  if(sel) sel.value = '20';
-  atualizarTotal(mesaDiv);
-  salvarEstadoMesa(mesaDiv);
-}
-
-function mudarTaxa(select){
-  const mesaDiv = select.closest('.mesa');
-  mesaDiv.dataset.taxa = parseInt(select.value);
-  atualizarTotal(mesaDiv);
-  salvarEstadoMesa(mesaDiv);
-}
-
-function atualizarItens(container, nome, qtd, preco, dontTouchQtdInDOM=false){
-  // procura div existente
-  let item = container.querySelector(`div[data-nome='${nome}']`);
-  if(!item){
-    item = document.createElement('div');
-    item.dataset.nome = nome;
-    container.appendChild(item);
-  }
-  // atualiza dataset e html
-  item.dataset.qtd = qtd;
-  item.dataset.preco = preco;
-  item.innerHTML = `${nome}: ${qtd} x $${preco.toFixed(2)} = $${(qtd*preco).toFixed(2)} <button class='remover-btn' onclick='removerItem(this, \"${nome}\", ${preco})'><i class='fas fa-minus'></i></button>`;
-}
-
-function removerItem(btn, nome, preco){
-  const itemDiv = btn.parentElement;
-  let qtd = parseInt(itemDiv.dataset.qtd || itemDiv.textContent.split(':')[1].split(' x')[0].trim());
-  qtd--;
-  const mesaDiv = itemDiv.closest('.mesa');
-  if(qtd<=0){ itemDiv.remove(); } else {
-    atualizarItens(mesaDiv.querySelector('.itens'), nome, qtd, preco);
-  }
-  atualizarTotal(mesaDiv);
-  salvarEstadoMesa(mesaDiv);
-}
-
-function atualizarTotal(mesaDiv){
-  let subtotal = 0;
-  mesaDiv.querySelectorAll('.itens div[data-nome]').forEach(i=>{
-    const qtd = parseInt(i.dataset.qtd || 0);
-    const preco = parseFloat(i.dataset.preco || 0);
-    subtotal += qtd * preco;
-  });
-  const taxa = parseFloat(mesaDiv.dataset.taxa || 0) / 100;
-  const total = subtotal * (1 + taxa);
-  mesaDiv.querySelector('.total').textContent = total.toFixed(2);
-  // Verificar se preenchida
-  if(subtotal > 0){
-    mesaDiv.classList.add('preenchida');
-  } else {
-    mesaDiv.classList.remove('preenchida');
-  }
-}
-
-/* Salva estado atual da mesa (itens, taxa, total) no Firebase */
-function salvarEstadoMesa(mesaDiv){
-  const codigo = mesaDiv.dataset.codigo;
-  const itens = [];
-  mesaDiv.querySelectorAll('.itens div[data-nome]').forEach(i=>{
-    const nome = i.dataset.nome;
-    const qtd = parseInt(i.dataset.qtd || 0);
-    const preco = parseFloat(i.dataset.preco || 0);
-    itens.push({nome,qtd,preco});
-  });
-  const total = mesaDiv.querySelector('.total').textContent;
-  const taxa = parseFloat(mesaDiv.dataset.taxa || 20);
-  const payload = {itens, total, taxa, updatedAt: Date.now()};
-  salvarMesaFirebase(codigo, payload);
-}
-
-/* Aplica estado vindo do DB para o DOM da mesa (substitui itens) */
-function aplicarEstadoLocal(mesaDiv, estado){
-  // estado: {itens:[{nome,qtd,preco}], total, taxa}
-  if(!estado) return;
-  const itensCont = mesaDiv.querySelector('.itens');
-  // remover todos elementos data-nome exceto categorias (categoria tem class 'categoria')
-  itensCont.querySelectorAll("div[data-nome]").forEach(d=>d.remove());
-
-  // adicionar itens do estado antes das categorias (append depois das categorias para preservar cardápio)
-  // Para simplicidade, vamos inserir no final da lista de itens (fica visível)
-  estado.itens && estado.itens.forEach(it => {
-    atualizarItens(itensCont, it.nome, it.qtd, it.preco);
-  });
-
-  // aplicar taxa
-  if(typeof estado.taxa !== 'undefined'){
-    mesaDiv.dataset.taxa = estado.taxa;
-    const sel = mesaDiv.querySelector('.taxa-container select');
-    if(sel) sel.value = String(estado.taxa);
-  }
-  // aplicar total (mas recalcular localmente para consistência)
-  atualizarTotal(mesaDiv);
-}
-
-/* Finalizar conta: gerar nota (imagem) e limpar mesa local e firebase */
-function finalizarMesa(btn){
-  const mesaDiv = btn.closest('.mesa');
-  const mesaNumero = mesaDiv.querySelector('h3').textContent;
-  const itens = mesaDiv.querySelectorAll('.itens div[data-nome]');
-  if(itens.length===0) return alert('Mesa vazia.');
-  const pedidoCount = String(pedidoGlobalCount++).padStart(2, '0');
-  const notaDiv = document.createElement('div');
-  notaDiv.className='nota';
-  const dataHoje = new Date().toLocaleDateString();
-  const horaAgora = new Date().toLocaleTimeString();
-  const pedidoId = Math.floor(Math.random() * 10000); // ID fictício do pedido
-  notaDiv.innerHTML=`
-    <div class='header'>
-      <h2>The Famous Pipeline Inn</h2>
-      <p>Restaurant & Bar</p>
-      <p>Pacific Palisades - Great Ocean Highway 14/78</p>
-    </div>
-    <div class='info'>
-      <p>Order #${pedidoId}</p>
-      <p>${mesaNumero}</p>
-      <p>Date: ${dataHoje} Time: ${horaAgora}</p>
-    </div>`;
-
-  let subtotal=0;
-  itens.forEach(i=>{
-    const nome = i.dataset.nome;
-    const qtd = parseInt(i.dataset.qtd);
-    const precoUnit = parseFloat(i.dataset.preco);
-    const valor = qtd * precoUnit;
-    subtotal += valor;
-    notaDiv.innerHTML += `<div class='item'><span class='qty'>${qtd}</span><span class='name'>${nome}</span><span class='price'>$${valor.toFixed(2)}</span></div>`;
-  });
-  const taxa = parseFloat(mesaDiv.dataset.taxa) / 100;
-  const taxaValor = subtotal * taxa;
-  const total = subtotal * (1 + taxa);
-  notaDiv.innerHTML += `
-    <div class='subtotal'><span>Subtotal</span><span>$${subtotal.toFixed(2)}</span></div>
-    <div class='tax'><span>Service Fee (${(taxa*100).toFixed(0)}%)</span><span>$${taxaValor.toFixed(2)}</span></div>
-    <div class='total'><span>Total</span><span>$${total.toFixed(2)}</span></div>
-    <div class='footer'>
-      <p>Obrigado pela sua visita, volte sempre!</p>
-    </div>`;
-
-  document.body.appendChild(notaDiv);
-
-  // gerar png da nota e iniciar download
-  html2canvas(notaDiv).then(canvas=>{
-    const link=document.createElement('a');
-    link.download=`${mesaNumero}_${pedidoCount}.png`;
-    link.href=canvas.toDataURL('image/png');
-    link.click();
-    notaDiv.remove();
-    // Limpar a mesa após finalizar
-    limparMesa(btn);
-    // opcional: remover do firebase (se quiser manter histórico, comente a linha abaixo)
-    removerMesaFirebase(mesaDiv.dataset.codigo);
-  }).catch(err => {
-    console.error('Erro gerar nota', err);
-    notaDiv.remove();
-  });
-}
-
-/* Download/inspect estado (debug) */
-function downloadEstado(){
-  // imprime no console o estado atual das mesas (local)
-  const estado = {};
-  mesas.forEach(m=>{
-    const codigo = m.dataset.codigo;
-    const itens = [];
-    m.querySelectorAll('.itens div[data-nome]').forEach(i=>{
-      itens.push({nome:i.dataset.nome, qtd: parseInt(i.dataset.qtd||0), preco: parseFloat(i.dataset.preco||0)});
-    });
-    estado[codigo] = {itens, taxa: parseFloat(m.dataset.taxa||20), total: m.querySelector('.total').textContent};
-  });
-  console.log('Estado local das mesas:', estado);
-  alert('Estado impresso no console (abra DevTools).');
-}
-
-/* =========================
-   Inicialização: criar mesas padrões
-   ========================= */
-// Criar mesas com nomes personalizados (somente locais - se houver dados no Firebase, onValue criará baseado no DB)
-for(let i=1;i<=5;i++) criarMesa("P" + i);
-for(let i=1;i<=4;i++) criarMesa("M" + i);
-for(let i=1;i<=4;i++) criarMesa("B" + i);
-
-</script>
 </body>
 </html>
