@@ -6,6 +6,7 @@
 <title>Sistema Restaurante - Pipeline Inn</title>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+<script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 <style>
 body { font-family: 'Roboto', sans-serif; background: #f0f2f5; margin:0; padding:20px; }
 h1 { text-align:center; color:#2c3e50; margin-bottom:20px; }
@@ -27,23 +28,22 @@ button:hover { opacity:0.9; }
 .total-container { text-align:right; font-weight:bold; color:#2c3e50; margin-bottom:12px; font-size:1em; }
 .add-avulso-btn { background:#f39c12; color:#fff; padding:12px 18px; border:none; border-radius:8px; font-size:1em; font-weight:600; cursor:pointer; transition:0.3s; margin-bottom:20px; display:block; margin-left:auto; margin-right:auto; }
 .add-avulso-btn:hover { opacity:0.9; }
-.desconto-container { margin-bottom:10px; text-align:center; }
-.desconto-container select { padding:5px; border-radius:5px; border:1px solid #ccc; }
-.nota { padding: 20px; width: 80mm; min-height: 150mm; border-radius: 5px; background: #fff; font-family: 'Courier New', monospace; font-size: 12px; margin: 20px auto; box-shadow: 0 8px 16px rgba(0,0,0,0.2); overflow: hidden; border: 1px solid #ccc; line-height: 1.4; }
-.nota .header { text-align: center; border-bottom: 1px dashed #000; padding-bottom: 10px; margin-bottom: 10px; }
-.nota .header h2 { font-size: 16px; margin: 0; font-weight: bold; }
-.nota .header p { margin: 2px 0; font-size: 10px; }
-.nota .info { text-align: center; margin-bottom: 10px; font-size: 10px; }
-.nota .item { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 12px; }
-.nota .subtotal, .nota .tax, .nota .total { display: flex; justify-content: space-between; margin-top: 10px; padding-top: 5px; border-top: 1px dashed #000; font-weight: bold; }
-.nota .footer { text-align: center; margin-top: 20px; font-size: 10px; border-top: 1px dashed #000; padding-top: 10px; }
+.desconto-container { margin-bottom: 10px; text-align: center; }
+.desconto-select { padding: 5px; border-radius: 5px; border: 1px solid #ddd; }
+.nota-btn { background:#9b59b6; color:#fff; width:100%; font-weight:600; margin-top:8px; }
+.receipt { font-family: 'Courier New', monospace; background: #f9f9f9; padding: 20px; border: 2px solid #000; width: 300px; margin: 0 auto; box-shadow: 0 0 10px rgba(0,0,0,0.5); display: none; position: absolute; top: -1000px; font-size: 12px; line-height: 1.4; color: #000; }
+.receipt h2 { text-align: center; margin-bottom: 10px; font-size: 1.2em; font-weight: bold; }
+.receipt p { margin: 5px 0; }
+.receipt .item { display: flex; justify-content: space-between; }
+.receipt .total-line { border-top: 1px solid #000; padding-top: 5px; font-weight: bold; }
+.receipt hr { border: none; border-top: 1px solid #000; margin: 10px 0; }
 @media (max-width:600px){ .mesas-container { flex-direction: column; align-items: center; } button { font-size:1em; } }
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-app.js";
-import { getDatabase, ref, set, onValue, update, remove, get } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-database.js";
+import { getDatabase, ref, set, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-database.js";
 
+// Configuração Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyAgXD5wTsSjSltBU1U_xJjrwWAHBQKhrAU",
   authDomain: "sistemarestaurante-99ae3.firebaseapp.com",
@@ -54,6 +54,7 @@ const firebaseConfig = {
   appId: "1:1045953751805:web:b5ee94a478dbb2cf8d6c94",
   measurementId: "G-G05BMHMNQ5"
 };
+
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
@@ -67,28 +68,19 @@ const categorias = {
 const mesasDiv = document.getElementById('mesas');
 let avulsoCount = 1;
 
-// Inicializa mesas padrão
-const mesasPadrao = ['P1','P2','P3','P4','P5','M1','M2','M3','M4','B1','B2','B3','B4'];
-mesasPadrao.forEach(codigo=>{
-  const mesaRef = ref(db,'mesas/'+codigo);
-  get(mesaRef).then(snap=>{
-    if(!snap.exists()){ set(mesaRef,{itens:{},desconto:0}); }
-  });
-});
-
-// Criar mesa local
+// Criação de mesa local
 function criarMesaLocal(codigo,isAvulso=false){
   if(document.getElementById(codigo)) return;
   const m=document.createElement('div');
   m.className='mesa';
   m.id=codigo;
   m.dataset.codigo=codigo;
-  m.dataset.desconto=0;
-  let fecharBtn = isAvulso ? `<button class='fechar-avulso-btn'>Fechar/Apagar Avulso</button>`:'';
+  m.dataset.taxa=20;
   m.innerHTML=`<h3>${codigo}</h3>
     <div class='desconto-container'>
-      Desconto: <select onchange="mudarDesconto('${codigo}',this.value)">
-        <option value="0" selected>0%</option>
+      <label>Desconto: </label>
+      <select class='desconto-select'>
+        <option value="0">0%</option>
         <option value="10">10%</option>
         <option value="20">20%</option>
       </select>
@@ -96,162 +88,157 @@ function criarMesaLocal(codigo,isAvulso=false){
     <div class='itens'></div>
     <div class='total-container'>Total: $<span class='total'>0.00</span></div>
     <button class='limpar-btn'>Limpar Mesa</button>
-    <button class='finalizar-btn'>Finalizar Mesa</button>
-    ${fecharBtn}`;
-
-  m.querySelector('.limpar-btn').onclick = ()=>{ set(ref(db,'mesas/'+codigo+'/itens'),{}); };
-  m.querySelector('.finalizar-btn').onclick = ()=>{ finalizarMesa(codigo); };
-  if(isAvulso){
-    m.querySelector('.fechar-avulso-btn').onclick = ()=>{ remove(ref(db,'mesas/'+codigo)); };
-  }
-
+    <button class='nota-btn'>Gerar Nota Fiscal</button>
+    ${isAvulso?`<button class='fechar-avulso-btn'>Fechar Avulso</button>`:''}`;
   mesasDiv.appendChild(m);
 
-  // Adicionar botões de categorias
-  const itensDiv = m.querySelector('.itens');
-  Object.entries(categorias).forEach(([catNome,pratos])=>{
-    const catDiv = document.createElement('div');
+  const descontoSelect = m.querySelector('.desconto-select');
+  descontoSelect.onchange = () => update(ref(db, 'mesas/' + codigo), { desconto: parseInt(descontoSelect.value) });
+
+  m.querySelector('.limpar-btn').onclick=()=>remove(ref(db,'mesas/'+codigo+'/itens'));
+  m.querySelector('.nota-btn').onclick=()=>gerarNotaFiscal(codigo);
+  if(isAvulso) m.querySelector('.fechar-avulso-btn').onclick=()=>remove(ref(db,'mesas/'+codigo));
+
+  const itensDiv=m.querySelector('.itens');
+  for(const [cat, pratos] of Object.entries(categorias)){
+    const catDiv=document.createElement('div');
     catDiv.className='categoria';
-    catDiv.textContent=catNome;
+    catDiv.textContent=cat;
     itensDiv.appendChild(catDiv);
     pratos.forEach(p=>{
-      const btn = document.createElement('button');
+      const btn=document.createElement('button');
       btn.className='item-btn';
-      btn.innerHTML = `${p.nome} <i class='fas fa-plus'></i>`;
-      btn.onclick = ()=>adicionarItem(codigo,p.nome,p.preco);
+      btn.innerHTML=`${p.nome} <i class='fas fa-plus'></i>`;
+      btn.onclick=()=>adicionarItem(codigo,p.nome,p.preco);
       itensDiv.appendChild(btn);
     });
-  });
+  }
 }
 
-// Atualizar desconto
-window.mudarDesconto = (codigo,valor)=>{
-  update(ref(db,'mesas/'+codigo),{desconto:parseInt(valor)});
-};
-
-// Adicionar item
+// Adicionar item ao Firebase
 function adicionarItem(codigo,nome,preco){
-  const itemRef = ref(db,'mesas/'+codigo+'/itens/'+nome);
-  get(itemRef).then(snap=>{
-    const qtd = snap.exists()?snap.val
-      ().qtd + 1 : 1;
-    set(itemRef, { preco, qtd });
-  });
+  const itemRef=ref(db,'mesas/'+codigo+'/itens/'+nome);
+  onValue(itemRef,snap=>{
+    const item=snap.val();
+    if(item) update(itemRef,{qtd:item.qtd+1,preco});
+    else set(itemRef,{qtd:1,preco});
+  },{onlyOnce:true});
 }
 
 // Remover item
 function removerItem(codigo,nome){
-  const itemRef = ref(db,'mesas/'+codigo+'/itens/'+nome);
-  get(itemRef).then(snap=>{
-    if(!snap.exists()) return;
-    const qtd = snap.val().qtd - 1;
-    if(qtd <= 0) remove(itemRef);
-    else update(itemRef,{ qtd });
-  });
+  const itemRef=ref(db,'mesas/'+codigo+'/itens/'+nome);
+  onValue(itemRef,snap=>{
+    const item=snap.val();
+    if(!item) return;
+    if(item.qtd<=1) remove(itemRef);
+    else update(itemRef,{qtd:item.qtd-1});
+  },{onlyOnce:true});
 }
 
-// Atualização em tempo real
-onValue(ref(db,'mesas/'), snap=>{
-  mesasDiv.innerHTML = '';
-  const data = snap.val() || {};
-  Object.keys(data).forEach(codigo=>{
-    const mesaData = data[codigo];
-    const isAvulso = codigo.includes('Avulso');
-    criarMesaLocal(codigo,isAvulso);
-    const m = document.getElementById(codigo);
-    m.dataset.desconto = mesaData.desconto || 0;
-    m.querySelector('select').value = m.dataset.desconto;
-    
-    const itensDiv = m.querySelector('.itens');
-    // Limpar apenas os itens já adicionados (não os botões das categorias)
-    itensDiv.querySelectorAll('div[data-nome]').forEach(d=>d.remove());
-    
-    Object.entries(mesaData.itens||{}).forEach(([nome,val])=>{
-      const div = document.createElement('div');
-      div.dataset.nome = nome;
-      div.innerHTML = `${nome}: ${val.qtd} x $${val.preco.toFixed(2)} = $${(val.qtd*val.preco).toFixed(2)}
-        <button class='remover-btn'><i class='fas fa-minus'></i></button>`;
-      div.querySelector('.remover-btn').onclick = ()=>removerItem(codigo,nome);
-      itensDiv.appendChild(div);
+// Gerar Nota Fiscal em PNG
+function gerarNotaFiscal(codigo) {
+  onValue(ref(db, 'mesas/' + codigo), (snapshot) => {
+    const mesa = snapshot.val();
+    if (!mesa) return;
+
+    const desconto = mesa.desconto || 0;
+    let subtotal = 0;
+    let itensHtml = '';
+
+    for (const [nome, item] of Object.entries(mesa.itens || {})) {
+      const itemTotal = item.qtd * item.preco;
+      subtotal += itemTotal;
+      itensHtml += `<div class="item">${item.qtd}x ${nome} <span>$${itemTotal.toFixed(2)}</span></div>`;
+    }
+
+    const descontoValor = subtotal * (desconto / 100);
+    const subtotalComDesconto = subtotal - descontoValor;
+    const taxaServico = subtotalComDesconto * 0.20;
+    const total = subtotalComDesconto + taxaServico;
+
+    const receiptHtml = `
+      <div class="receipt">
+        <h2>PIPELINE INN</h2>
+        <p>Propriedade 14/78 Great Ocean Highway</p>
+        <p>Pacific Palisades</p>
+        <p>Data/Hora: ${new Date().toLocaleString('pt-BR')}</p>
+        <p>Mesa: ${codigo}</p>
+        <hr>
+        ${itensHtml}
+        <hr>
+        <div class="item">Subtotal: <span>$${subtotal.toFixed(2)}</span></div>
+        <div class="item">Desconto (${desconto}%): <span>-$${descontoValor.toFixed(2)}</span></div>
+        <div class="item">Taxa de Serviço (20%): <span>$${taxaServico.toFixed(2)}</span></div>
+        <div class="item total-line">Total: <span>$${total.toFixed(2)}</span></div>
+        <p>Obrigado pela visita!</p>
+      </div>
+    `;
+
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = receiptHtml;
+    tempDiv.style.position = 'absolute';
+    tempDiv.style.left = '-9999px';
+    document.body.appendChild(tempDiv);
+
+    const receiptElement = tempDiv.querySelector('.receipt');
+    receiptElement.style.display = 'block';
+
+    html2canvas(receiptElement, { backgroundColor: '#f9f9f9', scale: 2 }).then(canvas => {
+      const link = document.createElement('a');
+      link.download = `nota_fiscal_${codigo}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      document.body.removeChild(tempDiv);
+    }).catch(err => {
+      console.error('Erro ao gerar PNG:', err);
     });
-    atualizarTotal(m);
-  });
+  }, { onlyOnce: true });
+}
+
+// Observador Firebase para atualizar itens e totais
+onValue(ref(db,'mesas/'),snapshot=>{
+  const data=snapshot.val()||{};
+  for(const [codigo,mesa] of Object.entries(data)){
+    criarMesaLocal(codigo);
+    const m = document.getElementById(codigo);
+    const descontoSelect = m.querySelector('.desconto-select');
+    descontoSelect.value = mesa.desconto || 0;
+    const itensDiv = m.querySelector('.itens');
+    itensDiv.querySelectorAll("div[data-nome]").forEach(d=>d.remove());
+    let subtotal=0;
+    for(const [nome,item] of Object.entries(mesa.itens||{})){
+      const div=document.createElement('div');
+      div.dataset.nome=nome;
+      div.innerHTML=`${nome}: ${item.qtd} x $${item.preco.toFixed(2)} = $${(item.qtd*item.preco).toFixed(2)}
+        <button class='remover-btn'>-</button>`;
+      div.querySelector('.remover-btn').onclick=()=>removerItem(codigo,nome);
+      itensDiv.appendChild(div);
+      subtotal+=item.qtd*item.preco;
+    }
+    const desconto = (mesa.desconto || 0) / 100;
+    const subtotalComDesconto = subtotal * (1 - desconto);
+    const taxaServico = subtotalComDesconto * 0.20;
+    const total = subtotalComDesconto + taxaServico;
+    m.querySelector('.total').textContent=total.toFixed(2);
+    m.classList.toggle('preenchida', total>0);
+  }
 });
 
-// Atualizar total
-function atualizarTotal(mesaDiv){
-  let subtotal = 0;
-  mesaDiv.querySelectorAll('.itens div[data-nome]').forEach(i=>{
-    const partes = i.textContent.split('= $');
-    subtotal += parseFloat(partes[1]);
-  });
-  const desconto = parseFloat(mesaDiv.dataset.desconto)/100;
-  const total = subtotal*(1-desconto);
-  mesaDiv.querySelector('.total').textContent = total.toFixed(2);
-  mesaDiv.classList.toggle('preenchida', subtotal>0);
-}
+// Criar mesas padrão
+['P1','P2','P3','P4','P5','M1','M2','M3','M4','B1','B2','B3','B4'].forEach(c=>criarMesaLocal(c));
 
-// Finalizar mesa e gerar nota fiscal PNG
-function finalizarMesa(codigo){
-  const m = document.getElementById(codigo);
-  const itensDiv = m.querySelector('.itens');
-  if(itensDiv.children.length===0) return;
-  let subtotal = 0;
-  const pedidoId = Math.floor(Math.random()*10000);
-  const notaDiv = document.createElement('div'); notaDiv.className='nota';
-  const dataHoje = new Date().toLocaleDateString();
-  const horaAgora = new Date().toLocaleTimeString();
-
-  notaDiv.innerHTML = `
-    <div class='header'>
-      <h2>The Famous Pipeline Inn</h2>
-      <p>Restaurant & Bar</p>
-      <p>Pacific Palisades - Great Ocean Highway 14/78</p>
-    </div>
-    <div class='info'>
-      <p>Order #${pedidoId}</p>
-      <p>${codigo}</p>
-      <p>Date: ${dataHoje} Time: ${horaAgora}</p>
-    </div>
-  `;
-
-  itensDiv.querySelectorAll("div[data-nome]").forEach(d=>{
-    const partes=d.textContent.split(': ');
-    const nome=partes[0];
-    const qtd=parseInt(partes[1].split(' x')[0]);
-    const preco=parseFloat(partes[1].split(' x $')[1].split(' =')[0]);
-    const valor=qtd*preco;
-    subtotal += valor;
-    notaDiv.innerHTML += `<div class='item'><span class='qty'>${qtd}</span><span class='name'>${nome}</span><span class='price'>$${valor.toFixed(2)}</span></div>`;
-  });
-
-  const desconto = parseFloat(m.dataset.desconto)/100;
-  const total = subtotal*(1-desconto);
-  notaDiv.innerHTML += `
-    <div class='subtotal'><span>Subtotal</span><span>$${subtotal.toFixed(2)}</span></div>
-    <div class='tax'><span>Desconto (${(desconto*100).toFixed(0)}%)</span><span>-$${(subtotal*desconto).toFixed(2)}</span></div>
-    <div class='total'><span>Total</span><span>$${total.toFixed(2)}</span></div>
-    <div class='footer'><p>Obrigado pela sua visita, volte sempre!</p></div>
-  `;
-
-  document.body.appendChild(notaDiv);
-  html2canvas(notaDiv).then(canvas=>{
-    const link=document.createElement('a');
-    link.download=`${codigo}_${pedidoId}.png`;
-    link.href=canvas.toDataURL('image/png');
-    link.click();
-    notaDiv.remove();
-    // Limpar mesa após finalizar
-    set(ref(db,'mesas/'+codigo+'/itens'),{});
-  });
-}
-
-// Adicionar avulso
-document.querySelector('.add-avulso-btn').onclick = ()=>{
-  const cod='Avulso-'+avulsoCount++;
-  set(ref(db,'mesas/'+cod),{itens:{},desconto:0});
+// Botão adicionar avulso
+document.querySelector('.add-avulso-btn').onclick=()=>{
+  criarMesaLocal('Avulso-'+avulsoCount,true);
+  avulsoCount++;
 };
+
 </script>
+</head>
+<body>
+<h1>Gerenciamento de Mesas - Pipeline Inn</h1>
+<button class="add-avulso-btn">Adicionar Conta Avulso</button>
+<div class="mesas-container" id="mesas"></div>
 </body>
 </html>
-
