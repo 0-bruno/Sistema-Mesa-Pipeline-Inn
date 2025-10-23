@@ -41,7 +41,7 @@ button:hover { opacity:0.9; }
 </style>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-app.js";
-import { getDatabase, ref, set, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-database.js";
+import { getDatabase, ref, set, onValue, update, remove, runTransaction } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-database.js";
 
 // Configuração Firebase
 const firebaseConfig = {
@@ -138,62 +138,73 @@ function removerItem(codigo,nome){
 
 // Gerar Nota Fiscal em PNG
 function gerarNotaFiscal(codigo) {
-  onValue(ref(db, 'mesas/' + codigo), (snapshot) => {
-    const mesa = snapshot.val();
-    if (!mesa) return;
+  const globalCountRef = ref(db, 'globalNotaCount');
+  runTransaction(globalCountRef, (currentCount) => {
+    return (currentCount || 0) + 1;
+  }).then((result) => {
+    const count = result.snapshot.val();
+    const fileName = `nota-fiscal-${codigo}#${count}.png`;
 
-    const desconto = mesa.desconto || 0;
-    let subtotal = 0;
-    let itensHtml = '';
+    const mesaRef = ref(db, 'mesas/' + codigo);
+    onValue(mesaRef, (mesaSnap) => {
+      const mesa = mesaSnap.val();
+      if (!mesa) return;
 
-    for (const [nome, item] of Object.entries(mesa.itens || {})) {
-      const itemTotal = item.qtd * item.preco;
-      subtotal += itemTotal;
-      itensHtml += `<div class="item">${item.qtd}x ${nome} <span>$${itemTotal.toFixed(2)}</span></div>`;
-    }
+      const desconto = mesa.desconto || 0;
+      let subtotal = 0;
+      let itensHtml = '';
 
-    const descontoValor = subtotal * (desconto / 100);
-    const subtotalComDesconto = subtotal - descontoValor;
-    const taxaServico = subtotalComDesconto * 0.20;
-    const total = subtotalComDesconto + taxaServico;
+      for (const [nome, item] of Object.entries(mesa.itens || {})) {
+        const itemTotal = item.qtd * item.preco;
+        subtotal += itemTotal;
+        itensHtml += `<div class="item">${item.qtd}x ${nome} <span>$${itemTotal.toFixed(2)}</span></div>`;
+      }
 
-    const receiptHtml = `
-      <div class="receipt">
-        <h2>PIPELINE INN</h2>
-        <p>Propriedade 14/78 Great Ocean Highway</p>
-        <p>Pacific Palisades</p>
-        <p>Data/Hora: ${new Date().toLocaleString('pt-BR')}</p>
-        <p>Mesa: ${codigo}</p>
-        <hr>
-        ${itensHtml}
-        <hr>
-        <div class="item">Subtotal: <span>$${subtotal.toFixed(2)}</span></div>
-        <div class="item">Desconto (${desconto}%): <span>-$${descontoValor.toFixed(2)}</span></div>
-        <div class="item">Taxa de Serviço (20%): <span>$${taxaServico.toFixed(2)}</span></div>
-        <div class="item total-line">Total: <span>$${total.toFixed(2)}</span></div>
-        <p>Obrigado pela visita!</p>
-      </div>
-    `;
+      const descontoValor = subtotal * (desconto / 100);
+      const subtotalComDesconto = subtotal - descontoValor;
+      const taxaServico = subtotalComDesconto * 0.20;
+      const total = subtotalComDesconto + taxaServico;
 
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = receiptHtml;
-    tempDiv.style.position = 'absolute';
-    tempDiv.style.left = '-9999px';
-    document.body.appendChild(tempDiv);
+      const receiptHtml = `
+        <div class="receipt">
+          <h2>PIPELINE INN</h2>
+          <p>Propriedade 14/78 Great Ocean Highway</p>
+          <p>Pacific Palisades</p>
+          <p>Data/Hora: ${new Date().toLocaleString('pt-BR')}</p>
+          <p>Mesa: ${codigo}</p>
+          <hr>
+          ${itensHtml}
+          <hr>
+          <div class="item">Subtotal: <span>$${subtotal.toFixed(2)}</span></div>
+          <div class="item">Desconto (${desconto}%): <span>-$${descontoValor.toFixed(2)}</span></div>
+          <div class="item">Taxa de Serviço (20%): <span>$${taxaServico.toFixed(2)}</span></div>
+          <div class="item total-line">Total: <span>$${total.toFixed(2)}</span></div>
+          <p>Obrigado pela visita!</p>
+        </div>
+      `;
 
-    const receiptElement = tempDiv.querySelector('.receipt');
-    receiptElement.style.display = 'block';
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = receiptHtml;
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.left = '-9999px';
+      document.body.appendChild(tempDiv);
 
-    html2canvas(receiptElement, { backgroundColor: '#f9f9f9', scale: 2 }).then(canvas => {
-      const link = document.createElement('a');
-      link.download = `nota_fiscal_${codigo}.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-      document.body.removeChild(tempDiv);
-    }).catch(err => {
-      console.error('Erro ao gerar PNG:', err);
-    });
-  }, { onlyOnce: true });
+      const receiptElement = tempDiv.querySelector('.receipt');
+      receiptElement.style.display = 'block';
+
+      html2canvas(receiptElement, { backgroundColor: '#f9f9f9', scale: 2 }).then(canvas => {
+        const link = document.createElement('a');
+        link.download = fileName;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        document.body.removeChild(tempDiv);
+      }).catch(err => {
+        console.error('Erro ao gerar PNG:', err);
+      });
+    }, { onlyOnce: true });
+  }).catch((error) => {
+    console.error('Erro na transação:', error);
+  });
 }
 
 // Observador Firebase para atualizar itens e totais
