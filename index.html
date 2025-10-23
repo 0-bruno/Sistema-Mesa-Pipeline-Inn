@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sistema Restaurante</title>
+<title>Sistema Restaurante - Pipeline Inn</title>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 <style>
@@ -33,6 +33,7 @@ button:hover { opacity:0.9; }
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-app.js";
 import { getDatabase, ref, set, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-database.js";
 
+// Configuração Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyAgXD5wTsSjSltBU1U_xJjrwWAHBQKhrAU",
   authDomain: "sistemarestaurante-99ae3.firebaseapp.com",
@@ -57,7 +58,7 @@ const categorias = {
 const mesasDiv = document.getElementById('mesas');
 let avulsoCount = 1;
 
-// Função para criar mesa localmente (uma única vez)
+// Criação de mesa local
 function criarMesaLocal(codigo,isAvulso=false){
   if(document.getElementById(codigo)) return;
   const m=document.createElement('div');
@@ -68,13 +69,11 @@ function criarMesaLocal(codigo,isAvulso=false){
   m.innerHTML=`<h3>${codigo}</h3><div class='itens'></div>
     <div class='total-container'>Total: $<span class='total'>0.00</span></div>
     <button class='limpar-btn'>Limpar Mesa</button>
-    <button class='finalizar-btn'>Finalize Table</button>
     ${isAvulso?`<button class='fechar-avulso-btn'>Fechar Avulso</button>`:''}`;
   mesasDiv.appendChild(m);
 
-  // Eventos locais
-  m.querySelector('.limpar-btn').onclick=()=>removerTodosItens(codigo);
-  if(isAvulso) m.querySelector('.fechar-avulso-btn').onclick=()=>removerMesa(codigo);
+  m.querySelector('.limpar-btn').onclick=()=>remove(ref(db,'mesas/'+codigo+'/itens'));
+  if(isAvulso) m.querySelector('.fechar-avulso-btn').onclick=()=>remove(ref(db,'mesas/'+codigo));
 
   const itensDiv=m.querySelector('.itens');
   for(const [cat, pratos] of Object.entries(categorias)){
@@ -102,17 +101,7 @@ function adicionarItem(codigo,nome,preco){
   },{onlyOnce:true});
 }
 
-// Remover todos itens (limpar mesa)
-function removerTodosItens(codigo){
-  remove(ref(db,'mesas/'+codigo+'/itens'));
-}
-
-// Remover mesa (apenas avulsa)
-function removerMesa(codigo){
-  remove(ref(db,'mesas/'+codigo));
-}
-
-// Remover item específico
+// Remover item
 function removerItem(codigo,nome){
   const itemRef=ref(db,'mesas/'+codigo+'/itens/'+nome);
   onValue(itemRef,snap=>{
@@ -123,13 +112,12 @@ function removerItem(codigo,nome){
   },{onlyOnce:true});
 }
 
-// Observador de mudanças em tempo real
+// Observador Firebase para atualizar itens e totais
 onValue(ref(db,'mesas/'),snapshot=>{
   const data=snapshot.val()||{};
   for(const [codigo,mesa] of Object.entries(data)){
     criarMesaLocal(codigo);
     const itensDiv=document.getElementById(codigo).querySelector('.itens');
-    // Remover itens antigos (menos categorias)
     itensDiv.querySelectorAll("div[data-nome]").forEach(d=>d.remove());
     let total=0;
     for(const [nome,item] of Object.entries(mesa.itens||{})){
@@ -146,7 +134,7 @@ onValue(ref(db,'mesas/'),snapshot=>{
   }
 });
 
-// Criação inicial das mesas padrão
+// Criar mesas padrão
 ['P1','P2','P3','P4','P5','M1','M2','M3','M4','B1','B2','B3','B4'].forEach(c=>criarMesaLocal(c));
 
 // Botão adicionar avulso
