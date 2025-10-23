@@ -27,13 +27,24 @@ button:hover { opacity:0.9; }
 .total-container { text-align:right; font-weight:bold; color:#2c3e50; margin-bottom:12px; font-size:1em; }
 .add-avulso-btn { background:#f39c12; color:#fff; padding:12px 18px; border:none; border-radius:8px; font-size:1em; font-weight:600; cursor:pointer; transition:0.3s; margin-bottom:20px; display:block; margin-left:auto; margin-right:auto; }
 .add-avulso-btn:hover { opacity:0.9; }
+.desconto-container { margin-bottom:10px; text-align:center; }
+.desconto-container select { padding:5px; border-radius:5px; border:1px solid #ccc; }
+.nota { padding: 20px; width: 80mm; min-height: 150mm; border-radius: 5px; background: #fff; font-family: 'Courier New', monospace; font-size: 12px; margin: 20px auto; box-shadow: 0 8px 16px rgba(0,0,0,0.2); overflow: hidden; border: 1px solid #ccc; line-height: 1.4; }
+.nota .header { text-align: center; border-bottom: 1px dashed #000; padding-bottom: 10px; margin-bottom: 10px; }
+.nota .header h2 { font-size: 16px; margin: 0; font-weight: bold; }
+.nota .header p { margin: 2px 0; font-size: 10px; }
+.nota .info { text-align: center; margin-bottom: 10px; font-size: 10px; }
+.nota .item { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 12px; }
+.nota .subtotal, .nota .tax, .nota .total { display: flex; justify-content: space-between; margin-top: 10px; padding-top: 5px; border-top: 1px dashed #000; font-weight: bold; }
+.nota .footer { text-align: center; margin-top: 20px; font-size: 10px; border-top: 1px dashed #000; padding-top: 10px; }
 @media (max-width:600px){ .mesas-container { flex-direction: column; align-items: center; } button { font-size:1em; } }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-app.js";
-import { getDatabase, ref, set, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-database.js";
+import { getDatabase, ref, set, onValue, update, remove, get } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-database.js";
 
-// Configuração Firebase
+// Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyAgXD5wTsSjSltBU1U_xJjrwWAHBQKhrAU",
   authDomain: "sistemarestaurante-99ae3.firebaseapp.com",
@@ -44,7 +55,6 @@ const firebaseConfig = {
   appId: "1:1045953751805:web:b5ee94a478dbb2cf8d6c94",
   measurementId: "G-G05BMHMNQ5"
 };
-
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
@@ -58,17 +68,26 @@ const categorias = {
 const mesasDiv = document.getElementById('mesas');
 let avulsoCount = 1;
 
-// Criação de mesa local
+// Criar mesa local
 function criarMesaLocal(codigo,isAvulso=false){
   if(document.getElementById(codigo)) return;
   const m=document.createElement('div');
   m.className='mesa';
   m.id=codigo;
   m.dataset.codigo=codigo;
-  m.dataset.taxa=20;
-  m.innerHTML=`<h3>${codigo}</h3><div class='itens'></div>
+  m.dataset.desconto=0;
+  m.innerHTML=`<h3>${codigo}</h3>
+    <div class='desconto-container'>
+      Desconto: <select onchange="mudarDesconto('${codigo}',this.value)">
+        <option value="0" selected>0%</option>
+        <option value="10">10%</option>
+        <option value="20">20%</option>
+      </select>
+    </div>
+    <div class='itens'></div>
     <div class='total-container'>Total: $<span class='total'>0.00</span></div>
     <button class='limpar-btn'>Limpar Mesa</button>
+    <button class='finalizar-btn'>Finalizar Mesa</button>
     ${isAvulso?`<button class='fechar-avulso-btn'>Fechar Avulso</button>`:''}`;
   mesasDiv.appendChild(m);
 
@@ -89,37 +108,46 @@ function criarMesaLocal(codigo,isAvulso=false){
       itensDiv.appendChild(btn);
     });
   }
+
+  m.querySelector('.finalizar-btn').onclick=()=>finalizarMesa(codigo);
 }
 
 // Adicionar item ao Firebase
 function adicionarItem(codigo,nome,preco){
   const itemRef=ref(db,'mesas/'+codigo+'/itens/'+nome);
-  onValue(itemRef,snap=>{
+  get(itemRef).then(snap=>{
     const item=snap.val();
     if(item) update(itemRef,{qtd:item.qtd+1,preco});
     else set(itemRef,{qtd:1,preco});
-  },{onlyOnce:true});
+  });
 }
 
 // Remover item
 function removerItem(codigo,nome){
   const itemRef=ref(db,'mesas/'+codigo+'/itens/'+nome);
-  onValue(itemRef,snap=>{
+  get(itemRef).then(snap=>{
     const item=snap.val();
     if(!item) return;
     if(item.qtd<=1) remove(itemRef);
-    else update(itemRef,{qtd:item.qtd-1});
-  },{onlyOnce:true});
+    else update(itemRef,{qtd: item.qtd-1});
+  });
 }
 
-// Observador Firebase para atualizar itens e totais
+// Alterar desconto
+window.mudarDesconto=(codigo,valor)=>{
+  const m=document.getElementById(codigo);
+  m.dataset.desconto=parseInt(valor);
+  atualizarTotal(codigo);
+}
+
+// Observador Firebase
 onValue(ref(db,'mesas/'),snapshot=>{
   const data=snapshot.val()||{};
   for(const [codigo,mesa] of Object.entries(data)){
     criarMesaLocal(codigo);
     const itensDiv=document.getElementById(codigo).querySelector('.itens');
     itensDiv.querySelectorAll("div[data-nome]").forEach(d=>d.remove());
-    let total=0;
+    let subtotal=0;
     for(const [nome,item] of Object.entries(mesa.itens||{})){
       const div=document.createElement('div');
       div.dataset.nome=nome;
@@ -127,27 +155,71 @@ onValue(ref(db,'mesas/'),snapshot=>{
         <button class='remover-btn'>-</button>`;
       div.querySelector('.remover-btn').onclick=()=>removerItem(codigo,nome);
       itensDiv.appendChild(div);
-      total+=item.qtd*item.preco;
+      subtotal+=item.qtd*item.preco;
     }
-    document.getElementById(codigo).querySelector('.total').textContent=total.toFixed(2);
-    document.getElementById(codigo).classList.toggle('preenchida', total>0);
+    atualizarTotal(codigo,subtotal);
   }
 });
+
+function atualizarTotal(codigo,subtotal=null){
+  const m=document.getElementById(codigo);
+  if(subtotal===null){
+    subtotal=0;
+    m.querySelectorAll('.itens div[data-nome]').forEach(d=>{
+      subtotal+=parseFloat(d.textContent.split('= $')[1]);
+    });
+  }
+  const desconto=parseInt(m.dataset.desconto)/100;
+  const total=subtotal*(1-desconto);
+  m.querySelector('.total').textContent=total.toFixed(2);
+  m.classList.toggle('preenchida',subtotal>0);
+}
 
 // Criar mesas padrão
 ['P1','P2','P3','P4','P5','M1','M2','M3','M4','B1','B2','B3','B4'].forEach(c=>criarMesaLocal(c));
 
-// Botão adicionar avulso
+// Adicionar Avulso
 document.querySelector('.add-avulso-btn').onclick=()=>{
-  criarMesaLocal('Avulso-'+avulsoCount,true);
-  avulsoCount++;
+  const cod='Avulso-'+avulsoCount++;
+  set(ref(db,'mesas/'+cod),{itens:{},desconto:0});
 };
 
+// Finalizar mesa
+function finalizarMesa(codigo){
+  const m=document.getElementById(codigo);
+  const itensDiv=m.querySelector('.itens');
+  if(itensDiv.children.length===0) return;
+  let subtotal=0;
+  const pedidoId=Math.floor(Math.random()*10000);
+  const notaDiv=document.createElement('div'); notaDiv.className='nota';
+  const dataHoje=new Date().toLocaleDateString();
+  const horaAgora=new Date().toLocaleTimeString();
+  notaDiv.innerHTML=`<div class='header'><h2>The Famous Pipeline Inn</h2><p>Restaurant & Bar</p><p>Pacific Palisades - Great Ocean Highway 14/78</p></div>
+    <div class='info'><p>Order #${pedidoId}</p><p>${codigo}</p><p>Date: ${dataHoje} Time: ${horaAgora}</p></div>`;
+  itensDiv.querySelectorAll("div[data-nome]").forEach(d=>{
+    const partes=d.textContent.split(': '); 
+    const nome=partes[0]; 
+    const qtd=parseInt(partes[1].split(' x')[0]);
+    const preco=parseFloat(partes[1].split(' x $')[1].split(' =')[0]);
+    const valor=qtd*preco; subtotal+=valor;
+    notaDiv.innerHTML+=`<div class='item'><span class='qty'>${qtd}</span><span class='name'>${nome}</span><span class='price'>$${valor.toFixed(2)}</span></div>`;
+  });
+  const desconto=parseInt(m.dataset.desconto)/100;
+  const total=subtotal*(1-desconto);
+  notaDiv.innerHTML+=`<div class='subtotal'><span>Subtotal</span><span>$${subtotal.toFixed(2)}</span></div>
+    <div class='tax'><span>Desconto (${(desconto*100).toFixed(0)}%)</span><span>-$${(subtotal*desconto).toFixed(2)}</span></div>
+    <div class='total'><span>Total</span><span>$${total.toFixed(2)}</span></div>
+    <div class='footer'><p>Obrigado pela sua visita, volte sempre!</p></div>`;
+  document.body.appendChild(notaDiv);
+  html2canvas(notaDiv).then(canvas=>{
+    const link=document.createElement('a');
+    link.download=`${codigo}_${pedidoId}.png`;
+    link.href=canvas.toDataURL('image/png');
+    link.click();
+    notaDiv.remove();
+    remove(ref(db,'mesas/'+codigo+'/itens'));
+  });
+}
 </script>
-</head>
-<body>
-<h1>Gerenciamento de Mesas - Pipeline Inn</h1>
-<button class="add-avulso-btn">Adicionar Conta Avulso</button>
-<div class="mesas-container" id="mesas"></div>
 </body>
 </html>
