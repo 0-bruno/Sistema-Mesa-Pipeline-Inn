@@ -44,7 +44,6 @@ button:hover { opacity:0.9; }
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-app.js";
 import { getDatabase, ref, set, onValue, update, remove, get } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-database.js";
 
-// Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyAgXD5wTsSjSltBU1U_xJjrwWAHBQKhrAU",
   authDomain: "sistemarestaurante-99ae3.firebaseapp.com",
@@ -68,6 +67,15 @@ const categorias = {
 const mesasDiv = document.getElementById('mesas');
 let avulsoCount = 1;
 
+// Inicializa mesas padrão
+const mesasPadrao = ['P1','P2','P3','P4','P5','M1','M2','M3','M4','B1','B2','B3','B4'];
+mesasPadrao.forEach(codigo=>{
+  const mesaRef = ref(db,'mesas/'+codigo);
+  get(mesaRef).then(snap=>{
+    if(!snap.exists()){ set(mesaRef,{itens:{},desconto:0}); }
+  });
+});
+
 // Criar mesa local
 function criarMesaLocal(codigo,isAvulso=false){
   if(document.getElementById(codigo)) return;
@@ -76,6 +84,7 @@ function criarMesaLocal(codigo,isAvulso=false){
   m.id=codigo;
   m.dataset.codigo=codigo;
   m.dataset.desconto=0;
+  let fecharBtn = isAvulso ? `<button class='fechar-avulso-btn'>Fechar/Apagar Avulso</button>`:'';
   m.innerHTML=`<h3>${codigo}</h3>
     <div class='desconto-container'>
       Desconto: <select onchange="mudarDesconto('${codigo}',this.value)">
@@ -88,128 +97,143 @@ function criarMesaLocal(codigo,isAvulso=false){
     <div class='total-container'>Total: $<span class='total'>0.00</span></div>
     <button class='limpar-btn'>Limpar Mesa</button>
     <button class='finalizar-btn'>Finalizar Mesa</button>
-    ${isAvulso?`<button class='fechar-avulso-btn'>Fechar Avulso</button>`:''}`;
-  mesasDiv.appendChild(m);
+    ${fecharBtn}`;
 
-  m.querySelector('.limpar-btn').onclick=()=>remove(ref(db,'mesas/'+codigo+'/itens'));
-  if(isAvulso) m.querySelector('.fechar-avulso-btn').onclick=()=>remove(ref(db,'mesas/'+codigo));
-
-  const itensDiv=m.querySelector('.itens');
-  for(const [cat, pratos] of Object.entries(categorias)){
-    const catDiv=document.createElement('div');
-    catDiv.className='categoria';
-    catDiv.textContent=cat;
-    itensDiv.appendChild(catDiv);
-    pratos.forEach(p=>{
-      const btn=document.createElement('button');
-      btn.className='item-btn';
-      btn.innerHTML=`${p.nome} <i class='fas fa-plus'></i>`;
-      btn.onclick=()=>adicionarItem(codigo,p.nome,p.preco);
-      itensDiv.appendChild(btn);
-    });
+  m.querySelector('.limpar-btn').onclick = ()=>{ set(ref(db,'mesas/'+codigo+'/itens'),{}); };
+  m.querySelector('.finalizar-btn').onclick = ()=>{ finalizarMesa(codigo); };
+  if(isAvulso){
+    m.querySelector('.fechar-avulso-btn').onclick = ()=>{ remove(ref(db,'mesas/'+codigo)); };
   }
 
-  m.querySelector('.finalizar-btn').onclick=()=>finalizarMesa(codigo);
+  mesasDiv.appendChild(m);
+
+  // Adicionar botões de categorias
+  const itensDiv = m.querySelector('.itens');
+  Object.entries(categorias).forEach(([catNome,pratos])=>{
+    const catDiv = document.createElement('div');
+    catDiv.className='categoria';
+    catDiv.textContent=catNome;
+    itensDiv.appendChild(catDiv);
+    pratos.forEach(p=>{
+      const btn = document.createElement('button');
+      btn.className='item-btn';
+      btn.innerHTML = `${p.nome} <i class='fas fa-plus'></i>`;
+      btn.onclick = ()=>adicionarItem(codigo,p.nome,p.preco);
+      itensDiv.appendChild(btn);
+    });
+  });
 }
 
-// Adicionar item ao Firebase
+// Atualizar desconto
+window.mudarDesconto = (codigo,valor)=>{
+  update(ref(db,'mesas/'+codigo),{desconto:parseInt(valor)});
+};
+
+// Adicionar item
 function adicionarItem(codigo,nome,preco){
-  const itemRef=ref(db,'mesas/'+codigo+'/itens/'+nome);
+  const itemRef = ref(db,'mesas/'+codigo+'/itens/'+nome);
   get(itemRef).then(snap=>{
-    const item=snap.val();
-    if(item) update(itemRef,{qtd:item.qtd+1,preco});
-    else set(itemRef,{qtd:1,preco});
+    const qtd = snap.exists()?snap.val
+      ().qtd + 1 : 1;
+    set(itemRef, { preco, qtd });
   });
 }
 
 // Remover item
 function removerItem(codigo,nome){
-  const itemRef=ref(db,'mesas/'+codigo+'/itens/'+nome);
+  const itemRef = ref(db,'mesas/'+codigo+'/itens/'+nome);
   get(itemRef).then(snap=>{
-    const item=snap.val();
-    if(!item) return;
-    if(item.qtd<=1) remove(itemRef);
-    else update(itemRef,{qtd: item.qtd-1});
+    if(!snap.exists()) return;
+    const qtd = snap.val().qtd - 1;
+    if(qtd <= 0) remove(itemRef);
+    else update(itemRef,{ qtd });
   });
 }
 
-// Alterar desconto
-window.mudarDesconto=(codigo,valor)=>{
-  const m=document.getElementById(codigo);
-  m.dataset.desconto=parseInt(valor);
-  atualizarTotal(codigo);
-}
-
-// Observador Firebase
-onValue(ref(db,'mesas/'),snapshot=>{
-  const data=snapshot.val()||{};
-  for(const [codigo,mesa] of Object.entries(data)){
-    criarMesaLocal(codigo);
-    const itensDiv=document.getElementById(codigo).querySelector('.itens');
-    itensDiv.querySelectorAll("div[data-nome]").forEach(d=>d.remove());
-    let subtotal=0;
-    for(const [nome,item] of Object.entries(mesa.itens||{})){
-      const div=document.createElement('div');
-      div.dataset.nome=nome;
-      div.innerHTML=`${nome}: ${item.qtd} x $${item.preco.toFixed(2)} = $${(item.qtd*item.preco).toFixed(2)}
-        <button class='remover-btn'>-</button>`;
-      div.querySelector('.remover-btn').onclick=()=>removerItem(codigo,nome);
+// Atualização em tempo real
+onValue(ref(db,'mesas/'), snap=>{
+  mesasDiv.innerHTML = '';
+  const data = snap.val() || {};
+  Object.keys(data).forEach(codigo=>{
+    const mesaData = data[codigo];
+    const isAvulso = codigo.includes('Avulso');
+    criarMesaLocal(codigo,isAvulso);
+    const m = document.getElementById(codigo);
+    m.dataset.desconto = mesaData.desconto || 0;
+    m.querySelector('select').value = m.dataset.desconto;
+    
+    const itensDiv = m.querySelector('.itens');
+    // Limpar apenas os itens já adicionados (não os botões das categorias)
+    itensDiv.querySelectorAll('div[data-nome]').forEach(d=>d.remove());
+    
+    Object.entries(mesaData.itens||{}).forEach(([nome,val])=>{
+      const div = document.createElement('div');
+      div.dataset.nome = nome;
+      div.innerHTML = `${nome}: ${val.qtd} x $${val.preco.toFixed(2)} = $${(val.qtd*val.preco).toFixed(2)}
+        <button class='remover-btn'><i class='fas fa-minus'></i></button>`;
+      div.querySelector('.remover-btn').onclick = ()=>removerItem(codigo,nome);
       itensDiv.appendChild(div);
-      subtotal+=item.qtd*item.preco;
-    }
-    atualizarTotal(codigo,subtotal);
-  }
+    });
+    atualizarTotal(m);
+  });
 });
 
-function atualizarTotal(codigo,subtotal=null){
-  const m=document.getElementById(codigo);
-  if(subtotal===null){
-    subtotal=0;
-    m.querySelectorAll('.itens div[data-nome]').forEach(d=>{
-      subtotal+=parseFloat(d.textContent.split('= $')[1]);
-    });
-  }
-  const desconto=parseInt(m.dataset.desconto)/100;
-  const total=subtotal*(1-desconto);
-  m.querySelector('.total').textContent=total.toFixed(2);
-  m.classList.toggle('preenchida',subtotal>0);
+// Atualizar total
+function atualizarTotal(mesaDiv){
+  let subtotal = 0;
+  mesaDiv.querySelectorAll('.itens div[data-nome]').forEach(i=>{
+    const partes = i.textContent.split('= $');
+    subtotal += parseFloat(partes[1]);
+  });
+  const desconto = parseFloat(mesaDiv.dataset.desconto)/100;
+  const total = subtotal*(1-desconto);
+  mesaDiv.querySelector('.total').textContent = total.toFixed(2);
+  mesaDiv.classList.toggle('preenchida', subtotal>0);
 }
 
-// Criar mesas padrão
-['P1','P2','P3','P4','P5','M1','M2','M3','M4','B1','B2','B3','B4'].forEach(c=>criarMesaLocal(c));
-
-// Adicionar Avulso
-document.querySelector('.add-avulso-btn').onclick=()=>{
-  const cod='Avulso-'+avulsoCount++;
-  set(ref(db,'mesas/'+cod),{itens:{},desconto:0});
-};
-
-// Finalizar mesa
+// Finalizar mesa e gerar nota fiscal PNG
 function finalizarMesa(codigo){
-  const m=document.getElementById(codigo);
-  const itensDiv=m.querySelector('.itens');
+  const m = document.getElementById(codigo);
+  const itensDiv = m.querySelector('.itens');
   if(itensDiv.children.length===0) return;
-  let subtotal=0;
-  const pedidoId=Math.floor(Math.random()*10000);
-  const notaDiv=document.createElement('div'); notaDiv.className='nota';
-  const dataHoje=new Date().toLocaleDateString();
-  const horaAgora=new Date().toLocaleTimeString();
-  notaDiv.innerHTML=`<div class='header'><h2>The Famous Pipeline Inn</h2><p>Restaurant & Bar</p><p>Pacific Palisades - Great Ocean Highway 14/78</p></div>
-    <div class='info'><p>Order #${pedidoId}</p><p>${codigo}</p><p>Date: ${dataHoje} Time: ${horaAgora}</p></div>`;
+  let subtotal = 0;
+  const pedidoId = Math.floor(Math.random()*10000);
+  const notaDiv = document.createElement('div'); notaDiv.className='nota';
+  const dataHoje = new Date().toLocaleDateString();
+  const horaAgora = new Date().toLocaleTimeString();
+
+  notaDiv.innerHTML = `
+    <div class='header'>
+      <h2>The Famous Pipeline Inn</h2>
+      <p>Restaurant & Bar</p>
+      <p>Pacific Palisades - Great Ocean Highway 14/78</p>
+    </div>
+    <div class='info'>
+      <p>Order #${pedidoId}</p>
+      <p>${codigo}</p>
+      <p>Date: ${dataHoje} Time: ${horaAgora}</p>
+    </div>
+  `;
+
   itensDiv.querySelectorAll("div[data-nome]").forEach(d=>{
-    const partes=d.textContent.split(': '); 
-    const nome=partes[0]; 
+    const partes=d.textContent.split(': ');
+    const nome=partes[0];
     const qtd=parseInt(partes[1].split(' x')[0]);
     const preco=parseFloat(partes[1].split(' x $')[1].split(' =')[0]);
-    const valor=qtd*preco; subtotal+=valor;
-    notaDiv.innerHTML+=`<div class='item'><span class='qty'>${qtd}</span><span class='name'>${nome}</span><span class='price'>$${valor.toFixed(2)}</span></div>`;
+    const valor=qtd*preco;
+    subtotal += valor;
+    notaDiv.innerHTML += `<div class='item'><span class='qty'>${qtd}</span><span class='name'>${nome}</span><span class='price'>$${valor.toFixed(2)}</span></div>`;
   });
-  const desconto=parseInt(m.dataset.desconto)/100;
-  const total=subtotal*(1-desconto);
-  notaDiv.innerHTML+=`<div class='subtotal'><span>Subtotal</span><span>$${subtotal.toFixed(2)}</span></div>
+
+  const desconto = parseFloat(m.dataset.desconto)/100;
+  const total = subtotal*(1-desconto);
+  notaDiv.innerHTML += `
+    <div class='subtotal'><span>Subtotal</span><span>$${subtotal.toFixed(2)}</span></div>
     <div class='tax'><span>Desconto (${(desconto*100).toFixed(0)}%)</span><span>-$${(subtotal*desconto).toFixed(2)}</span></div>
     <div class='total'><span>Total</span><span>$${total.toFixed(2)}</span></div>
-    <div class='footer'><p>Obrigado pela sua visita, volte sempre!</p></div>`;
+    <div class='footer'><p>Obrigado pela sua visita, volte sempre!</p></div>
+  `;
+
   document.body.appendChild(notaDiv);
   html2canvas(notaDiv).then(canvas=>{
     const link=document.createElement('a');
@@ -217,9 +241,17 @@ function finalizarMesa(codigo){
     link.href=canvas.toDataURL('image/png');
     link.click();
     notaDiv.remove();
-    remove(ref(db,'mesas/'+codigo+'/itens'));
+    // Limpar mesa após finalizar
+    set(ref(db,'mesas/'+codigo+'/itens'),{});
   });
 }
+
+// Adicionar avulso
+document.querySelector('.add-avulso-btn').onclick = ()=>{
+  const cod='Avulso-'+avulsoCount++;
+  set(ref(db,'mesas/'+cod),{itens:{},desconto:0});
+};
 </script>
 </body>
 </html>
+
