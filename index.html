@@ -7,156 +7,153 @@
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 <style>
-  body { font-family: 'Roboto', sans-serif; background: #f0f2f5; margin:0; padding:20px; }
-  h1 { text-align:center; color:#2c3e50; margin-bottom:20px; }
-  .mesas-container { display: flex; flex-wrap: wrap; gap: 20px; justify-content:center; }
-  .mesa { background:#fff; border-radius:15px; padding:15px; width:100%; max-width:320px; box-shadow:0 6px 15px rgba(0,0,0,0.15); transition:0.3s; }
-  .mesa:hover { transform: translateY(-3px); box-shadow:0 10px 20px rgba(0,0,0,0.2); }
-  .mesa.preenchida { background: #e8f5e8; }
-  .mesa h3 { text-align:center; color:#34495e; margin-bottom:10px; font-size:1.2em; }
-  .itens { display:flex; flex-direction: column; gap:8px; margin-bottom:10px; max-height:200px; overflow-y:auto; }
-  .categoria { font-weight: bold; color: #2c3e50; margin-top: 10px; margin-bottom: 5px; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
-  button { padding:10px 15px; border:none; border-radius:8px; cursor:pointer; font-size:0.95em; transition:0.2s; }
-  button:hover { opacity:0.9; }
-  .item-btn { background:#3498db; color:#fff; text-align:left; font-weight:500; display:flex; justify-content:space-between; align-items:center; }
-  .item-btn i { margin-left:10px; }
-  .finalizar-btn { background:#27ae60; color:#fff; width:100%; font-weight:600; margin-top:8px; }
-  .limpar-btn { background:#f39c12; color:#fff; width:100%; font-weight:600; margin-top:8px; }
-  .remover-btn { background:#e74c3c; color:#fff; font-weight:600; border-radius:5px; padding:2px 6px; margin-left:5px; }
-  .fechar-avulso-btn { background:#c0392b; color:#fff; width:100%; margin-top:8px; font-weight:600; }
-  .total-container { text-align:right; font-weight:bold; color:#2c3e50; margin-bottom:12px; font-size:1em; }
-  .add-avulso-btn { background:#f39c12; color:#fff; padding:12px 18px; border:none; border-radius:8px; font-size:1em; font-weight:600; cursor:pointer; transition:0.3s; margin-bottom:20px; display:block; margin-left:auto; margin-right:auto; }
-  .add-avulso-btn:hover { opacity:0.9; }
-  @media (max-width:600px){ .mesas-container { flex-direction: column; align-items: center; } button { font-size:1em; } }
+body { font-family: 'Roboto', sans-serif; background: #f0f2f5; margin:0; padding:20px; }
+h1 { text-align:center; color:#2c3e50; margin-bottom:20px; }
+.mesas-container { display: flex; flex-wrap: wrap; gap: 20px; justify-content:center; }
+.mesa { background:#fff; border-radius:15px; padding:15px; width:100%; max-width:320px; box-shadow:0 6px 15px rgba(0,0,0,0.15); transition:0.3s; }
+.mesa:hover { transform: translateY(-3px); box-shadow:0 10px 20px rgba(0,0,0,0.2); }
+.mesa.preenchida { background: #e8f5e8; }
+.mesa h3 { text-align:center; color:#34495e; margin-bottom:10px; font-size:1.2em; }
+.itens { display:flex; flex-direction: column; gap:8px; margin-bottom:10px; max-height:200px; overflow-y:auto; }
+.categoria { font-weight: bold; color: #2c3e50; margin-top: 10px; margin-bottom: 5px; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+button { padding:10px 15px; border:none; border-radius:8px; cursor:pointer; font-size:0.95em; transition:0.2s; }
+button:hover { opacity:0.9; }
+.item-btn { background:#3498db; color:#fff; text-align:left; font-weight:500; display:flex; justify-content:space-between; align-items:center; }
+.item-btn i { margin-left:10px; }
+.finalizar-btn { background:#27ae60; color:#fff; width:100%; font-weight:600; margin-top:8px; }
+.limpar-btn { background:#f39c12; color:#fff; width:100%; font-weight:600; margin-top:8px; }
+.remover-btn { background:#e74c3c; color:#fff; font-weight:600; border-radius:5px; padding:2px 6px; margin-left:5px; }
+.fechar-avulso-btn { background:#c0392b; color:#fff; width:100%; margin-top:8px; font-weight:600; }
+.total-container { text-align:right; font-weight:bold; color:#2c3e50; margin-bottom:12px; font-size:1em; }
+.add-avulso-btn { background:#f39c12; color:#fff; padding:12px 18px; border:none; border-radius:8px; font-size:1em; font-weight:600; cursor:pointer; transition:0.3s; margin-bottom:20px; display:block; margin-left:auto; margin-right:auto; }
+.add-avulso-btn:hover { opacity:0.9; }
+@media (max-width:600px){ .mesas-container { flex-direction: column; align-items: center; } button { font-size:1em; } }
 </style>
-<!-- Firebase -->
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-app.js";
-  import { getDatabase, ref, set, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-database.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-app.js";
+import { getDatabase, ref, set, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-database.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyAgXD5wTsSjSltBU1U_xJjrwWAHBQKhrAU",
-    authDomain: "sistemarestaurante-99ae3.firebaseapp.com",
-    databaseURL: "https://sistemarestaurante-99ae3-default-rtdb.firebaseio.com",
-    projectId: "sistemarestaurante-99ae3",
-    storageBucket: "sistemarestaurante-99ae3.appspot.com",
-    messagingSenderId: "1045953751805",
-    appId: "1:1045953751805:web:b5ee94a478dbb2cf8d6c94",
-    measurementId: "G-G05BMHMNQ5"
-  };
+const firebaseConfig = {
+  apiKey: "AIzaSyAgXD5wTsSjSltBU1U_xJjrwWAHBQKhrAU",
+  authDomain: "sistemarestaurante-99ae3.firebaseapp.com",
+  databaseURL: "https://sistemarestaurante-99ae3-default-rtdb.firebaseio.com",
+  projectId: "sistemarestaurante-99ae3",
+  storageBucket: "sistemarestaurante-99ae3.appspot.com",
+  messagingSenderId: "1045953751805",
+  appId: "1:1045953751805:web:b5ee94a478dbb2cf8d6c94",
+  measurementId: "G-G05BMHMNQ5"
+};
 
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
 
-  const categorias = {
-    "Pratos":[{nome:'Chicken Sandwich',preco:40},{nome:'Venison Royale',preco:43},{nome:'Woodland Steak',preco:40},{nome:'Drunk Lake',preco:28},{nome:'Golden Lobster',preco:33},{nome:'Sunset Bluegill',preco:45}],
-    "Sobremesas":[{nome:'Petit Gateau',preco:20}],
-    "Bebidas Alcoólicas":[{nome:'Henessy',preco:22},{nome:'Cerveja Patriots',preco:9},{nome:'Cerveja piBwasser',preco:11},{nome:"Zach’s Beer",preco:12},{nome:'Chandon',preco:100},{nome:'Tequila',preco:32}],
-    "Bebidas":[{nome:'Café',preco:8},{nome:'Cola',preco:5},{nome:'Sprunk',preco:5},{nome:'Red Pipeline',preco:20},{nome:'Blue Horizon',preco:22},{nome:'Desert Spirit',preco:22}]
-  };
+const categorias = {
+  "Pratos":[{nome:'Chicken Sandwich',preco:40},{nome:'Venison Royale',preco:43},{nome:'Woodland Steak',preco:40},{nome:'Drunk Lake',preco:28},{nome:'Golden Lobster',preco:33},{nome:'Sunset Bluegill',preco:45}],
+  "Sobremesas":[{nome:'Petit Gateau',preco:20}],
+  "Bebidas Alcoólicas":[{nome:'Henessy',preco:22},{nome:'Cerveja Patriots',preco:9},{nome:'Cerveja piBwasser',preco:11},{nome:"Zach’s Beer",preco:12},{nome:'Chandon',preco:100},{nome:'Tequila',preco:32}],
+  "Bebidas":[{nome:'Café',preco:8},{nome:'Cola',preco:5},{nome:'Sprunk',preco:5},{nome:'Red Pipeline',preco:20},{nome:'Blue Horizon',preco:22},{nome:'Desert Spirit',preco:22}]
+};
 
-  const mesasDiv = document.getElementById('mesas');
-  let avulsoCount = 1;
+const mesasDiv = document.getElementById('mesas');
+let avulsoCount = 1;
 
-  function criarMesa(codigo, isAvulso=false){
-    if(document.getElementById(codigo)) return; // Evita duplicar
-    const m=document.createElement('div');
-    m.className='mesa';
-    m.id=codigo;
-    m.dataset.codigo=codigo;
-    m.dataset.taxa=20;
-    m.innerHTML=`<h3>${codigo}</h3><div class='itens'></div>
-      <div class='total-container'>Total: $<span class='total'>0.00</span></div>
-      <button class='limpar-btn'>Limpar Mesa</button>
-      <button class='finalizar-btn'>Finalize Table</button>
-      ${isAvulso?`<button class='fechar-avulso-btn'>Fechar Avulso</button>`:''}`;
-    mesasDiv.appendChild(m);
+// Função para criar mesa localmente (uma única vez)
+function criarMesaLocal(codigo,isAvulso=false){
+  if(document.getElementById(codigo)) return;
+  const m=document.createElement('div');
+  m.className='mesa';
+  m.id=codigo;
+  m.dataset.codigo=codigo;
+  m.dataset.taxa=20;
+  m.innerHTML=`<h3>${codigo}</h3><div class='itens'></div>
+    <div class='total-container'>Total: $<span class='total'>0.00</span></div>
+    <button class='limpar-btn'>Limpar Mesa</button>
+    <button class='finalizar-btn'>Finalize Table</button>
+    ${isAvulso?`<button class='fechar-avulso-btn'>Fechar Avulso</button>`:''}`;
+  mesasDiv.appendChild(m);
 
-    // Eventos locais
-    m.querySelector('.limpar-btn').onclick=()=>limparMesa(codigo);
-    if(isAvulso) m.querySelector('.fechar-avulso-btn').onclick=()=>removerMesa(codigo);
+  // Eventos locais
+  m.querySelector('.limpar-btn').onclick=()=>removerTodosItens(codigo);
+  if(isAvulso) m.querySelector('.fechar-avulso-btn').onclick=()=>removerMesa(codigo);
 
-    // Carregar itens
-    const itensDiv=m.querySelector('.itens');
-    for(const [cat, pratos] of Object.entries(categorias)){
-      const catDiv=document.createElement('div');
-      catDiv.className='categoria';
-      catDiv.textContent=cat;
-      itensDiv.appendChild(catDiv);
-      pratos.forEach(p=>{
-        const btn=document.createElement('button');
-        btn.className='item-btn';
-        btn.innerHTML=`${p.nome} <i class='fas fa-plus'></i>`;
-        btn.onclick=()=>adicionarItem(codigo, p.nome, p.preco);
-        itensDiv.appendChild(btn);
-      });
+  const itensDiv=m.querySelector('.itens');
+  for(const [cat, pratos] of Object.entries(categorias)){
+    const catDiv=document.createElement('div');
+    catDiv.className='categoria';
+    catDiv.textContent=cat;
+    itensDiv.appendChild(catDiv);
+    pratos.forEach(p=>{
+      const btn=document.createElement('button');
+      btn.className='item-btn';
+      btn.innerHTML=`${p.nome} <i class='fas fa-plus'></i>`;
+      btn.onclick=()=>adicionarItem(codigo,p.nome,p.preco);
+      itensDiv.appendChild(btn);
+    });
+  }
+}
+
+// Adicionar item ao Firebase
+function adicionarItem(codigo,nome,preco){
+  const itemRef=ref(db,'mesas/'+codigo+'/itens/'+nome);
+  onValue(itemRef,snap=>{
+    const item=snap.val();
+    if(item) update(itemRef,{qtd:item.qtd+1,preco});
+    else set(itemRef,{qtd:1,preco});
+  },{onlyOnce:true});
+}
+
+// Remover todos itens (limpar mesa)
+function removerTodosItens(codigo){
+  remove(ref(db,'mesas/'+codigo+'/itens'));
+}
+
+// Remover mesa (apenas avulsa)
+function removerMesa(codigo){
+  remove(ref(db,'mesas/'+codigo));
+}
+
+// Remover item específico
+function removerItem(codigo,nome){
+  const itemRef=ref(db,'mesas/'+codigo+'/itens/'+nome);
+  onValue(itemRef,snap=>{
+    const item=snap.val();
+    if(!item) return;
+    if(item.qtd<=1) remove(itemRef);
+    else update(itemRef,{qtd:item.qtd-1});
+  },{onlyOnce:true});
+}
+
+// Observador de mudanças em tempo real
+onValue(ref(db,'mesas/'),snapshot=>{
+  const data=snapshot.val()||{};
+  for(const [codigo,mesa] of Object.entries(data)){
+    criarMesaLocal(codigo);
+    const itensDiv=document.getElementById(codigo).querySelector('.itens');
+    // Remover itens antigos (menos categorias)
+    itensDiv.querySelectorAll("div[data-nome]").forEach(d=>d.remove());
+    let total=0;
+    for(const [nome,item] of Object.entries(mesa.itens||{})){
+      const div=document.createElement('div');
+      div.dataset.nome=nome;
+      div.innerHTML=`${nome}: ${item.qtd} x $${item.preco.toFixed(2)} = $${(item.qtd*item.preco).toFixed(2)}
+        <button class='remover-btn'>-</button>`;
+      div.querySelector('.remover-btn').onclick=()=>removerItem(codigo,nome);
+      itensDiv.appendChild(div);
+      total+=item.qtd*item.preco;
     }
+    document.getElementById(codigo).querySelector('.total').textContent=total.toFixed(2);
+    document.getElementById(codigo).classList.toggle('preenchida', total>0);
   }
+});
 
-  // Firebase Realtime
-  function atualizarMesaFirebase(codigo, itens){
-    set(ref(db, 'mesas/'+codigo), {itens});
-  }
+// Criação inicial das mesas padrão
+['P1','P2','P3','P4','P5','M1','M2','M3','M4','B1','B2','B3','B4'].forEach(c=>criarMesaLocal(c));
 
-  function adicionarItem(codigo, nome, preco){
-    const mesaRef=ref(db,'mesas/'+codigo+'/itens');
-    onValue(mesaRef, snap=>{
-      let itens=snap.val()||{};
-      if(itens[nome]) itens[nome].qtd++;
-      else itens[nome]={preco,qtd:1};
-      set(mesaRef,itens);
-    }, {onlyOnce:true});
-  }
-
-  function limparMesa(codigo){
-    remove(ref(db,'mesas/'+codigo+'/itens'));
-  }
-
-  function removerMesa(codigo){
-    remove(ref(db,'mesas/'+codigo));
-    document.getElementById(codigo).remove();
-  }
-
-  // Observa mudanças em tempo real
-  onValue(ref(db,'mesas/'), snapshot=>{
-    const data=snapshot.val()||{};
-    for(const [codigo, mesa] of Object.entries(data)){
-      criarMesa(codigo);
-      const itensDiv=document.getElementById(codigo).querySelector('.itens');
-      itensDiv.querySelectorAll("div[data-nome]").forEach(d=>d.remove());
-      let total=0;
-      for(const [nome,item] of Object.entries(mesa.itens||{})){
-        const div=document.createElement('div');
-        div.dataset.nome=nome;
-        div.innerHTML=`${nome}: ${item.qtd} x $${item.preco.toFixed(2)} = $${(item.qtd*item.preco).toFixed(2)} 
-          <button class='remover-btn'>-</button>`;
-        div.querySelector('.remover-btn').onclick=()=>removerItem(codigo,nome);
-        itensDiv.appendChild(div);
-        total+=item.qtd*item.preco;
-      }
-      document.getElementById(codigo).querySelector('.total').textContent=total.toFixed(2);
-      document.getElementById(codigo).classList.toggle('preenchida', total>0);
-    }
-  });
-
-  function removerItem(codigo,nome){
-    const mesaRef=ref(db,'mesas/'+codigo+'/itens/'+nome);
-    onValue(mesaRef,snap=>{
-      let item=snap.val();
-      if(!item) return;
-      if(item.qtd<=1) remove(mesaRef);
-      else update(mesaRef,{qtd:item.qtd-1});
-    }, {onlyOnce:true});
-  }
-
-  // Criação inicial das mesas
-  ['P1','P2','P3','P4','P5','M1','M2','M3','M4','B1','B2','B3','B4'].forEach(c=>criarMesa(c));
-
-  // Adicionar Avulso
-  document.querySelector('.add-avulso-btn').onclick=()=>{
-    criarMesa('Avulso-'+avulsoCount,true);
-    avulsoCount++;
-  };
+// Botão adicionar avulso
+document.querySelector('.add-avulso-btn').onclick=()=>{
+  criarMesaLocal('Avulso-'+avulsoCount,true);
+  avulsoCount++;
+};
 
 </script>
 </head>
