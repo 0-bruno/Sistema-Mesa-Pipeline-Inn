@@ -145,6 +145,7 @@ const pratos = [
 const mesasDiv = document.getElementById('mesas');
 let avulsoCount = 1;
 let mesas = []; // Array para armazenar referências das mesas
+let pedidoGlobalCount = 1; // Contador global de pedidos
 
 function criarMesa(numero, isAvulso=false){
   const m=document.createElement('div');
@@ -311,6 +312,7 @@ function finalizarMesa(btn){
   const mesaNumero = mesaDiv.querySelector('h3').textContent;
   const itens = mesaDiv.querySelectorAll('.itens div');
   if(itens.length===0) return;
+  const pedidoCount = String(pedidoGlobalCount++).padStart(2, '0');
   const notaDiv = document.createElement('div');
   notaDiv.className='nota';
   const dataHoje = new Date().toLocaleDateString();
@@ -350,7 +352,7 @@ function finalizarMesa(btn){
   document.body.appendChild(notaDiv);
   html2canvas(notaDiv).then(canvas=>{
     const link=document.createElement('a');
-    link.download=`receipt_${mesaNumero}.png`;
+    link.download=`${mesaNumero}_${pedidoCount}.png`;
     link.href=canvas.toDataURL('image/png');
     link.click();
     notaDiv.remove();
@@ -361,8 +363,8 @@ function finalizarMesa(btn){
 
 // Criar mesas com nomes personalizados
 for(let i=1;i<=5;i++) criarMesa("P" + i);
-for(let i=6;i<=9;i++) criarMesa("M" + i);
-for(let i=10;i<=14;i++) criarMesa("B" + i);
+for(let i=1;i<=4;i++) criarMesa("M" + i);
+for(let i=1;i<=4;i++) criarMesa("B" + i);
 </script>
 </body>
 </html>
