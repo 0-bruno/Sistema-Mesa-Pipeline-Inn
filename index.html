@@ -15,6 +15,7 @@
   .mesa.preenchida { background: #e8f5e8; } /* Cor verde clara para mesas preenchidas */
   .mesa h3 { text-align:center; color:#34495e; margin-bottom:10px; font-size:1.2em; }
   .itens { display:flex; flex-direction: column; gap:8px; margin-bottom:10px; max-height:200px; overflow-y:auto; }
+  .categoria { font-weight: bold; color: #2c3e50; margin-top: 10px; margin-bottom: 5px; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
   button { padding:10px 15px; border:none; border-radius:8px; cursor:pointer; font-size:0.95em; transition:0.2s; }
   button:hover { opacity:0.9; }
   .item-btn { background:#3498db; color:#fff; text-align:left; font-weight:500; display:flex; justify-content:space-between; align-items:center; }
@@ -120,27 +121,35 @@
 <button class="add-avulso-btn" onclick="adicionarAvulso()">Adicionar Conta Avulso</button>
 <div class="mesas-container" id="mesas"></div>
 <script>
-const pratos = [
-  {nome: 'Chicken Sandwich', preco: 40.00},
-  {nome: 'Venison Royale', preco: 43.00},
-  {nome: 'Woodland Steak', preco: 40.00},
-  {nome: 'Drunk Lake', preco: 28.00},
-  {nome: 'Golden Lobster', preco: 33.00},
-  {nome: 'Sunset Bluegill', preco: 45.00},
-  {nome: 'Petit Gateau', preco: 20.00},
-  {nome: 'Henessy', preco: 22.00},
-  {nome: 'Cerveja Patriots', preco: 9.00},
-  {nome: 'Cerveja piBwasser', preco: 11.00},
-  {nome: 'Zach’s Beer', preco: 12.00},
-  {nome: 'Chandon', preco: 100.00},
-  {nome: 'Tequila', preco: 32.00},
-  {nome: 'Café', preco: 8.00},
-  {nome: 'Cola', preco: 5.00},
-  {nome: 'Sprunk', preco: 5.00},
-  {nome: 'Red Pipeline', preco: 20.00},
-  {nome: 'Blue Horizon', preco: 22.00},
-  {nome: 'Desert Spirit', preco: 22.00}
-];
+const categorias = {
+  "Pratos": [
+    {nome: 'Chicken Sandwich', preco: 40.00},
+    {nome: 'Venison Royale', preco: 43.00},
+    {nome: 'Woodland Steak', preco: 40.00},
+    {nome: 'Drunk Lake', preco: 28.00},
+    {nome: 'Golden Lobster', preco: 33.00},
+    {nome: 'Sunset Bluegill', preco: 45.00}
+  ],
+  "Sobremesas": [
+    {nome: 'Petit Gateau', preco: 20.00}
+  ],
+  "Bebidas Alcoólicas": [
+    {nome: 'Henessy', preco: 22.00},
+    {nome: 'Cerveja Patriots', preco: 9.00},
+    {nome: 'Cerveja piBwasser', preco: 11.00},
+    {nome: 'Zach’s Beer', preco: 12.00},
+    {nome: 'Chandon', preco: 100.00},
+    {nome: 'Tequila', preco: 32.00}
+  ],
+  "Bebidas": [
+    {nome: 'Café', preco: 8.00},
+    {nome: 'Cola', preco: 5.00},
+    {nome: 'Sprunk', preco: 5.00},
+    {nome: 'Red Pipeline', preco: 20.00},
+    {nome: 'Blue Horizon', preco: 22.00},
+    {nome: 'Desert Spirit', preco: 22.00}
+  ]
+};
 
 const mesasDiv = document.getElementById('mesas');
 let avulsoCount = 1;
@@ -173,18 +182,24 @@ function criarMesa(numero, isAvulso=false){
     <button class='limpar-btn' onclick='limparMesa(this)'>Limpar Mesa</button>
     <button class='finalizar-btn' onclick='finalizarMesa(this)'>Finalize Table</button>${fecharAvulsoBtn}`;
   const itensDiv = m.querySelector('.itens');
-  pratos.forEach(p => {
-    const btn = document.createElement('button');
-    btn.className = 'item-btn';
-    btn.innerHTML = `${p.nome} <i class='fas fa-plus'></i>`;
-    let qtd = 0;
-    btn.onclick = () => {
-      qtd++;
-      atualizarItens(itensDiv, p.nome, qtd, p.preco);
-      atualizarTotal(m);
-    };
-    itensDiv.appendChild(btn);
-  });
+  for (const [categoriaNome, pratos] of Object.entries(categorias)) {
+    const categoriaDiv = document.createElement('div');
+    categoriaDiv.className = 'categoria';
+    categoriaDiv.textContent = categoriaNome;
+    itensDiv.appendChild(categoriaDiv);
+    pratos.forEach(p => {
+      const btn = document.createElement('button');
+      btn.className = 'item-btn';
+      btn.innerHTML = `${p.nome} <i class='fas fa-plus'></i>`;
+      let qtd = 0;
+      btn.onclick = () => {
+        qtd++;
+        atualizarItens(itensDiv, p.nome, qtd, p.preco);
+        atualizarTotal(m);
+      };
+      itensDiv.appendChild(btn);
+    });
+  }
   mesasDiv.appendChild(m);
   mesas.push(m); // Adicionar à lista de mesas
   atualizarSelects(); // Atualizar selects de todas as mesas
@@ -225,27 +240,13 @@ function mudarMesa(btn){
   const destinoMesa = mesas.find(m => m.dataset.codigo === destinoCodigo);
   if(!destinoMesa) return;
   // Transferir itens
-  const itensOrigem = mesaDiv.querySelectorAll('.itens div');
+  const itensOrigem = mesaDiv.querySelectorAll('.itens div[data-nome]');
   const itensDestino = destinoMesa.querySelector('.itens');
   itensOrigem.forEach(item => {
     itensDestino.appendChild(item.cloneNode(true));
   });
-  // Limpar origem
-  mesaDiv.querySelector('.itens').innerHTML = '';
-  // Recriar botões de pratos na origem
-  const itensDivOrigem = mesaDiv.querySelector('.itens');
-  pratos.forEach(p => {
-    const btn = document.createElement('button');
-    btn.className = 'item-btn';
-    btn.innerHTML = `${p.nome} <i class='fas fa-plus'></i>`;
-    let qtd = 0;
-    btn.onclick = () => {
-      qtd++;
-      atualizarItens(itensDivOrigem, p.nome, qtd, p.preco);
-      atualizarTotal(mesaDiv);
-    };
-    itensDivOrigem.appendChild(btn);
-  });
+  // Limpar origem (apenas itens, não categorias)
+  mesaDiv.querySelectorAll('.itens div[data-nome]').forEach(div => div.remove());
   // Atualizar totais
   atualizarTotal(mesaDiv);
   atualizarTotal(destinoMesa);
@@ -293,7 +294,7 @@ function removerItem(btn, nome, preco){
 
 function atualizarTotal(mesaDiv){
   let subtotal=0;
-  mesaDiv.querySelectorAll('.itens div').forEach(i=>{
+  mesaDiv.querySelectorAll('.itens div[data-nome]').forEach(i=>{
     subtotal += parseFloat(i.textContent.split('= $')[1]);
   });
   const taxa = parseFloat(mesaDiv.dataset.taxa) / 100;
@@ -310,7 +311,7 @@ function atualizarTotal(mesaDiv){
 function finalizarMesa(btn){
   const mesaDiv = btn.parentElement;
   const mesaNumero = mesaDiv.querySelector('h3').textContent;
-  const itens = mesaDiv.querySelectorAll('.itens div');
+  const itens = mesaDiv.querySelectorAll('.itens div[data-nome]');
   if(itens.length===0) return;
   const pedidoCount = String(pedidoGlobalCount++).padStart(2, '0');
   const notaDiv = document.createElement('div');
