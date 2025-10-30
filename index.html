@@ -59,10 +59,10 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 const categorias = {
-  "Pratos":[{nome:'Chicken Sandwich',preco:40},{nome:'Venison Royale',preco:43},{nome:'Woodland Steak',preco:40},{nome:'Drunk Lake',preco:28},{nome:'Golden Lobster',preco:33},{nome:'Sunset Bluegill',preco:45}],
+  "Pratos":[{nome:'Chicken Sandwich',preco:40},{nome:'Venison Royale',preco:43},{nome:'Woodland Steak',preco:40},{nome:'Drunk Lake',preco:28},{nome:'Golden Marlim',preco:33},{nome:'Sunset Bluegill',preco:45}],
   "Sobremesas":[{nome:'Petit Gateau',preco:20}],
-  "Bebidas Alcoólicas":[{nome:'Henessy',preco:22},{nome:'Cerveja Patriots',preco:9},{nome:'Cerveja piBwasser',preco:11},{nome:"Zach’s Beer",preco:12},{nome:'Chandon',preco:100},{nome:'Tequila',preco:32}],
-  "Bebidas":[{nome:'Café',preco:8},{nome:'Cola',preco:5},{nome:'Sprunk',preco:5},{nome:'Red Pipeline',preco:20},{nome:'Blue Horizon',preco:22},{nome:'Desert Spirit',preco:22}]
+  "Bebidas Alcoólicas":[{nome:'Henessy',preco:22},{nome:'Cerveja Patriots',preco:9},{nome:'Cerveja piBwasser',preco:11},{nome:"Zach’s Beer",preco:12},{nome:'Chandon',preco:100},{nome:'Tequila',preco:32},{nome:'Red Pipeline',preco:20},{nome:'Blue Horizon',preco:22},{nome:'Desert Spirit',preco:22}],
+  "Bebidas":[{nome:'Café',preco:8},{nome:'Cola',preco:5},{nome:'Sprunk',preco:5}]
 };
 
 const mesasDiv = document.getElementById('mesas');
@@ -253,3 +253,4 @@ document.querySelector('.add-avulso-btn').onclick=()=>{
 <div class="mesas-container" id="mesas"></div>
 </body>
 </html>
+
